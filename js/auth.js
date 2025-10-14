@@ -1,5 +1,5 @@
 // =====================================
-// AUTH MANAGER - CORRECTED VERSION
+// AUTH MANAGER - FULLY CORRECTED VERSION
 // =====================================
 
 class AuthManager {
@@ -195,11 +195,11 @@ class AuthManager {
         this.setLoading(form, true);
         
         try {
-            // Call Supabase
+            // Call Supabase - pass username in metadata
             const result = await supabaseManager.signUp(email, password, username);
             
             if (result.success) {
-                this.showMessage('Registrazione completata! Controlla la tua email per confermare.', 'success');
+                this.showMessage('Registrazione completata! Effettua il login.', 'success');
                 
                 // Clear form
                 form.reset();
@@ -207,7 +207,7 @@ class AuthManager {
                 // Switch to login tab after delay
                 setTimeout(() => {
                     this.switchTab('login');
-                }, 3000);
+                }, 2000);
             } else {
                 this.showMessage(result.error || 'Errore durante la registrazione', 'error');
             }
