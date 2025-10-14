@@ -1,0 +1,224 @@
+<!-- AUCTION SETUP SECTION CONTENT -->
+<div class="auction-setup-wrapper">
+    <div class="container">
+        <!-- Setup Header -->
+        <div class="setup-header">
+            <div class="setup-back">
+                <button class="btn-icon" onclick="window.router.navigate('dashboard')">
+                    ← Back
+                </button>
+            </div>
+            <div class="setup-title">
+                <h1 id="setup-auction-name">Setup Asta</h1>
+                <div class="setup-code">
+                    <span>Codice: <strong id="setup-auction-code">------</strong></span>
+                    <button class="copy-btn" onclick="auctionSetupManager.copyCode()">📋</button>
+                </div>
+            </div>
+            <div class="setup-actions">
+                <button id="start-auction-btn" class="btn btn-success" disabled>
+                    <span>🚀</span>
+                    <span>Avvia Asta</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Setup Progress -->
+        <div class="setup-progress">
+            <div class="progress-step completed">
+                <div class="progress-icon">1</div>
+                <div class="progress-label">Asta Creata</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" id="progress-participants">
+                <div class="progress-icon">2</div>
+                <div class="progress-label">Partecipanti</div>
+            </div>
+            <div class="progress-line"></div>
+            <div class="progress-step" id="progress-ready">
+                <div class="progress-icon">3</div>
+                <div class="progress-label">Tutti Pronti</div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="setup-grid">
+            <!-- Left Column - Settings -->
+            <div class="setup-column">
+                <!-- Auction Settings Card -->
+                <div class="setup-card">
+                    <div class="card-header">
+                        <h3>⚙️ Impostazioni Asta</h3>
+                        <button class="btn-icon" id="edit-settings-btn">✏️</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <span class="setting-label">Budget</span>
+                                <span class="setting-value" id="setting-budget">--</span>
+                            </div>
+                            <div class="setting-item">
+                                <span class="setting-label">Partecipanti</span>
+                                <span class="setting-value" id="setting-participants">--</span>
+                            </div>
+                            <div class="setting-item">
+                                <span class="setting-label">Tipo Asta</span>
+                                <span class="setting-value" id="setting-type">--</span>
+                            </div>
+                            <div class="setting-item">
+                                <span class="setting-label">Modalità Rilanci</span>
+                                <span class="setting-value" id="setting-bid-mode">--</span>
+                            </div>
+                            <div class="setting-item">
+                                <span class="setting-label">Prezzo Partenza</span>
+                                <span class="setting-value" id="setting-start-price">--</span>
+                            </div>
+                            <div class="setting-item">
+                                <span class="setting-label">Timer</span>
+                                <span class="setting-value" id="setting-timer">--</span>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-divider"></div>
+                        
+                        <h4>Composizione Rosa</h4>
+                        <div class="roster-grid">
+                            <div class="roster-item">
+                                <span class="roster-role" style="color: var(--role-p)">P</span>
+                                <span class="roster-value" id="roster-p">--</span>
+                            </div>
+                            <div class="roster-item">
+                                <span class="roster-role" style="color: var(--role-d)">D</span>
+                                <span class="roster-value" id="roster-d">--</span>
+                            </div>
+                            <div class="roster-item">
+                                <span class="roster-role" style="color: var(--role-c)">C</span>
+                                <span class="roster-value" id="roster-c">--</span>
+                            </div>
+                            <div class="roster-item">
+                                <span class="roster-role" style="color: var(--role-a)">A</span>
+                                <span class="roster-value" id="roster-a">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invite Card -->
+                <div class="setup-card">
+                    <div class="card-header">
+                        <h3>🔗 Invita Partecipanti</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="invite-box">
+                            <p>Condividi questo codice per far entrare altri partecipanti:</p>
+                            <div class="code-display">
+                                <span id="invite-code">------</span>
+                                <button class="btn btn-primary" onclick="auctionSetupManager.shareCode()">
+                                    Condividi
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="invite-actions">
+                            <button class="btn btn-secondary btn-block" onclick="auctionSetupManager.copyInviteLink()">
+                                📋 Copia Link Invito
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Participants -->
+            <div class="setup-column">
+                <!-- Participants Card -->
+                <div class="setup-card">
+                    <div class="card-header">
+                        <h3>👥 Partecipanti (<span id="participants-count">0</span>/<span id="participants-max">0</span>)</h3>
+                        <div class="header-actions">
+                            <button class="btn-icon" onclick="auctionSetupManager.refreshParticipants()">🔄</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="participants-list" class="participants-list">
+                            <!-- Loading state -->
+                            <div class="loading-state">
+                                <div class="loading"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ready Check Card -->
+                <div class="setup-card">
+                    <div class="card-header">
+                        <h3>✅ Controllo Pronti</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="ready-status">
+                            <div class="ready-progress">
+                                <div class="ready-bar" id="ready-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="ready-text">
+                                <span id="ready-count">0</span> su <span id="ready-total">0</span> pronti
+                            </div>
+                        </div>
+                        
+                        <div class="my-status">
+                            <label class="ready-toggle">
+                                <input type="checkbox" id="my-ready-status">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">Sono pronto</span>
+                            </label>
+                        </div>
+                        
+                        <div class="ready-info">
+                            <small>Tutti i partecipanti devono essere pronti prima di avviare l'asta</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Settings Modal -->
+<div id="edit-settings-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Modifica Impostazioni</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <form id="edit-settings-form">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Budget Iniziale</label>
+                    <input type="number" id="edit-budget" class="form-control" min="100" max="2000">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Timer (secondi)</label>
+                    <div class="timer-control">
+                        <label class="switch">
+                            <input type="checkbox" id="edit-timer-enabled">
+                            <span class="slider"></span>
+                        </label>
+                        <input type="number" id="edit-timer-seconds" class="form-control" min="5" max="60" disabled>
+                    </div>
+                </div>
+                
+                <div class="warning-box">
+                    <p>⚠️ Alcune impostazioni non possono essere modificate dopo la creazione dell'asta.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').classList.add('hidden')">
+                    Annulla
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    Salva Modifiche
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

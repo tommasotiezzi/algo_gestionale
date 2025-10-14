@@ -1,0 +1,252 @@
+<!-- TEAMS SECTION CONTENT -->
+<div class="teams-wrapper">
+    <div class="container">
+        <!-- Teams Header -->
+        <div class="teams-header">
+            <div class="teams-header-left">
+                <button class="btn-icon" onclick="window.router.navigate('dashboard')">
+                    ← Back
+                </button>
+                <h1>Rose e Risultati</h1>
+            </div>
+            <div class="teams-header-center">
+                <div class="auction-info">
+                    <span class="auction-name" id="teams-auction-name">---</span>
+                    <span class="auction-badge" id="teams-auction-status">---</span>
+                </div>
+            </div>
+            <div class="teams-header-right">
+                <button class="btn btn-secondary" id="export-btn">
+                    📥 Esporta
+                </button>
+            </div>
+        </div>
+
+        <!-- Teams Stats Overview -->
+        <div class="teams-stats">
+            <div class="stat-card">
+                <div class="stat-label">Teams</div>
+                <div class="stat-value" id="total-teams">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Giocatori Totali</div>
+                <div class="stat-value" id="total-players">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Spesa Totale</div>
+                <div class="stat-value" id="total-spent">0 €</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Media per Giocatore</div>
+                <div class="stat-value" id="avg-price">0 €</div>
+            </div>
+        </div>
+
+        <!-- View Toggle -->
+        <div class="teams-controls">
+            <div class="view-tabs">
+                <button class="view-tab active" data-view="grid">
+                    <span>⊞</span>
+                    Vista Griglia
+                </button>
+                <button class="view-tab" data-view="compare">
+                    <span>📊</span>
+                    Confronta
+                </button>
+                <button class="view-tab" data-view="stats">
+                    <span>📈</span>
+                    Statistiche
+                </button>
+            </div>
+            <div class="filter-controls">
+                <select id="team-filter" class="form-control">
+                    <option value="all">Tutti i Team</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="teams-content" id="teams-content">
+            <!-- Grid View (default) -->
+            <div id="grid-view" class="view-container active">
+                <div class="teams-grid" id="teams-grid">
+                    <!-- Loading state -->
+                    <div class="loading-state">
+                        <div class="loading"></div>
+                        <p>Caricamento rose...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compare View -->
+            <div id="compare-view" class="view-container hidden">
+                <div class="compare-container">
+                    <div class="compare-selectors">
+                        <select id="compare-team-1" class="form-control">
+                            <option value="">Seleziona Team 1</option>
+                        </select>
+                        <span class="vs-label">VS</span>
+                        <select id="compare-team-2" class="form-control">
+                            <option value="">Seleziona Team 2</option>
+                        </select>
+                    </div>
+                    <div class="compare-content" id="compare-content">
+                        <div class="compare-empty">
+                            <p>Seleziona due team da confrontare</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats View -->
+            <div id="stats-view" class="view-container hidden">
+                <div class="stats-container">
+                    <!-- Top Spenders -->
+                    <div class="stats-section">
+                        <h3>💰 Top Acquisti</h3>
+                        <div class="stats-list" id="top-purchases">
+                            <!-- Will be populated -->
+                        </div>
+                    </div>
+                    
+                    <!-- Best Deals -->
+                    <div class="stats-section">
+                        <h3>🎯 Migliori Affari</h3>
+                        <div class="stats-list" id="best-deals">
+                            <!-- Will be populated -->
+                        </div>
+                    </div>
+                    
+                    <!-- Team Rankings -->
+                    <div class="stats-section">
+                        <h3>🏆 Classifiche Team</h3>
+                        <div class="rankings-grid" id="team-rankings">
+                            <!-- Will be populated -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Team Detail Modal -->
+<div id="team-detail-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2 id="modal-team-name">---</h2>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Team Summary -->
+            <div class="team-summary">
+                <div class="summary-item">
+                    <span class="summary-label">Budget Speso</span>
+                    <span class="summary-value" id="modal-budget-spent">0 €</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Budget Rimanente</span>
+                    <span class="summary-value" id="modal-budget-remaining">0 €</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Giocatori</span>
+                    <span class="summary-value" id="modal-players-count">0</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Media IA</span>
+                    <span class="summary-value" id="modal-avg-ia">0</span>
+                </div>
+            </div>
+            
+            <!-- Players by Role -->
+            <div class="roster-sections">
+                <!-- Portieri -->
+                <div class="roster-section">
+                    <h4 style="color: var(--role-p)">Portieri</h4>
+                    <div class="roster-players" id="modal-portieri">
+                        <!-- Players will be inserted here -->
+                    </div>
+                </div>
+                
+                <!-- Difensori -->
+                <div class="roster-section">
+                    <h4 style="color: var(--role-d)">Difensori</h4>
+                    <div class="roster-players" id="modal-difensori">
+                        <!-- Players will be inserted here -->
+                    </div>
+                </div>
+                
+                <!-- Centrocampisti -->
+                <div class="roster-section">
+                    <h4 style="color: var(--role-c)">Centrocampisti</h4>
+                    <div class="roster-players" id="modal-centrocampisti">
+                        <!-- Players will be inserted here -->
+                    </div>
+                </div>
+                
+                <!-- Attaccanti -->
+                <div class="roster-section">
+                    <h4 style="color: var(--role-a)">Attaccanti</h4>
+                    <div class="roster-players" id="modal-attaccanti">
+                        <!-- Players will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="this.closest('.modal').classList.add('hidden')">
+                Chiudi
+            </button>
+            <button class="btn btn-primary" onclick="teamsManager.exportTeam()">
+                📥 Esporta Rosa
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div id="export-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Esporta Rose</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="export-options">
+                <label class="export-option">
+                    <input type="radio" name="export-format" value="csv" checked>
+                    <span>CSV (Excel)</span>
+                </label>
+                <label class="export-option">
+                    <input type="radio" name="export-format" value="json">
+                    <span>JSON</span>
+                </label>
+                <label class="export-option">
+                    <input type="radio" name="export-format" value="pdf">
+                    <span>PDF (Stampa)</span>
+                </label>
+            </div>
+            
+            <div class="export-settings">
+                <label class="form-check">
+                    <input type="checkbox" id="export-prices" checked>
+                    <span>Includi prezzi acquisto</span>
+                </label>
+                <label class="form-check">
+                    <input type="checkbox" id="export-stats" checked>
+                    <span>Includi statistiche (IA, Slot)</span>
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="this.closest('.modal').classList.add('hidden')">
+                Annulla
+            </button>
+            <button class="btn btn-primary" onclick="teamsManager.performExport()">
+                Esporta
+            </button>
+        </div>
+    </div>
+</div>

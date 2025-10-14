@@ -1,0 +1,318 @@
+<!-- DASHBOARD SECTION CONTENT -->
+<div class="dashboard-wrapper">
+    <div class="container">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="dashboard-title">
+                <h1>Le Mie Aste</h1>
+                <p class="dashboard-subtitle">Gestisci e partecipa alle aste di fantacalcio</p>
+            </div>
+            <div class="dashboard-actions">
+                <button id="create-auction-btn" class="btn btn-primary">
+                    <span>+</span>
+                    <span>Crea Nuova Asta</span>
+                </button>
+                <button id="join-auction-btn" class="btn btn-secondary">
+                    <span>🔗</span>
+                    <span>Unisciti con Codice</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="dashboard-stats">
+            <div class="stat-card">
+                <div class="stat-icon">🏆</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-auctions">0</div>
+                    <div class="stat-label">Aste Totali</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="active-auctions">0</div>
+                    <div class="stat-label">Aste Attive</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="completed-auctions">0</div>
+                    <div class="stat-label">Completate</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="total-teams">0</div>
+                    <div class="stat-label">Teams Totali</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="dashboard-filters">
+            <button class="filter-tab active" data-filter="all">
+                Tutte le Aste
+            </button>
+            <button class="filter-tab" data-filter="active">
+                In Corso
+            </button>
+            <button class="filter-tab" data-filter="setup">
+                In Preparazione
+            </button>
+            <button class="filter-tab" data-filter="completed">
+                Completate
+            </button>
+        </div>
+
+        <!-- Auctions Grid -->
+        <div id="auctions-grid" class="auctions-grid">
+            <!-- Loading State -->
+            <div class="loading-state" id="auctions-loading">
+                <div class="loading"></div>
+                <p>Caricamento aste...</p>
+            </div>
+
+            <!-- Empty State (hidden by default) -->
+            <div class="empty-state hidden" id="auctions-empty">
+                <div class="empty-icon">📦</div>
+                <h3>Nessuna asta trovata</h3>
+                <p>Crea la tua prima asta o unisciti a una esistente</p>
+                <div class="empty-actions">
+                    <button class="btn btn-primary" onclick="document.getElementById('create-auction-btn').click()">
+                        Crea Asta
+                    </button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('join-auction-btn').click()">
+                        Unisciti
+                    </button>
+                </div>
+            </div>
+
+            <!-- Auction Cards Container -->
+            <div class="auction-cards" id="auction-cards-container">
+                <!-- Cards will be inserted here dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Auction Modal -->
+<div id="create-auction-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2>Crea Nuova Asta</h2>
+            <button class="modal-close">&times;</button>
+        </div>
+        <form id="create-auction-form">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="auction-name" class="form-label">Nome Asta *</label>
+                        <input 
+                            type="text" 
+                            id="auction-name" 
+                            class="form-control" 
+                            placeholder="Es: Lega dei Campioni 2024"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="creator-team-name" class="form-label">Nome del Tuo Team *</label>
+                        <input 
+                            type="text" 
+                            id="creator-team-name" 
+                            class="form-control" 
+                            placeholder="Es: Real Madrid"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="auction-budget" class="form-label">Budget Iniziale</label>
+                        <input 
+                            type="number" 
+                            id="auction-budget" 
+                            class="form-control" 
+                            value="500"
+                            min="100"
+                            max="2000"
+                            step="50"
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label for="auction-participants" class="form-label">Numero Partecipanti</label>
+                        <select id="auction-participants" class="form-control">
+                            <option value="8">8 Partecipanti</option>
+                            <option value="10">10 Partecipanti</option>
+                            <option value="12">12 Partecipanti</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4>Composizione Rosa</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="max-portieri" class="form-label">Max Portieri</label>
+                            <input type="number" id="max-portieri" class="form-control" value="3" min="1" max="5">
+                        </div>
+                        <div class="form-group">
+                            <label for="max-difensori" class="form-label">Max Difensori</label>
+                            <input type="number" id="max-difensori" class="form-control" value="8" min="5" max="12">
+                        </div>
+                        <div class="form-group">
+                            <label for="max-centrocampisti" class="form-label">Max Centrocampisti</label>
+                            <input type="number" id="max-centrocampisti" class="form-control" value="8" min="5" max="12">
+                        </div>
+                        <div class="form-group">
+                            <label for="max-attaccanti" class="form-label">Max Attaccanti</label>
+                            <input type="number" id="max-attaccanti" class="form-control" value="6" min="3" max="10">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4>Impostazioni Asta</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="auction-type" class="form-label">Tipo di Asta</label>
+                            <select id="auction-type" class="form-control">
+                                <option value="turn">Chiamata a Turno</option>
+                                <option value="alphabetic">Ordine Alfabetico</option>
+                                <option value="random">Chiamata Random</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="bid-mode" class="form-label">Modalità Rilanci</label>
+                            <select id="bid-mode" class="form-control">
+                                <option value="free">Rilanci Liberi</option>
+                                <option value="fixed_turns">Turni Fissi</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="starting-price" class="form-label">Prezzo di Partenza</label>
+                            <select id="starting-price" class="form-control">
+                                <option value="1">Sempre 1 credito</option>
+                                <option value="qt_a">Quotazione iniziale</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input type="checkbox" id="timer-enabled">
+                                <label for="timer-enabled">Abilita Timer</label>
+                            </div>
+                            <input 
+                                type="number" 
+                                id="timer-seconds" 
+                                class="form-control mt-sm" 
+                                value="10"
+                                min="5"
+                                max="60"
+                                disabled
+                                placeholder="Secondi"
+                            >
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').classList.add('hidden')">
+                    Annulla
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Crea Asta</span>
+                    <span class="btn-loader hidden">
+                        <span class="loading"></span>
+                    </span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Join Auction Modal -->
+<div id="join-auction-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Unisciti a un'Asta</h2>
+            <button class="modal-close">&times;</button>
+        </div>
+        <form id="join-auction-form">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="join-code" class="form-label">Codice Asta (6 caratteri)</label>
+                    <input 
+                        type="text" 
+                        id="join-code" 
+                        class="form-control input-large" 
+                        placeholder="ABC123"
+                        maxlength="6"
+                        pattern="[A-Za-z0-9]{6}"
+                        required
+                        style="text-transform: uppercase; text-align: center; font-size: 1.5rem; letter-spacing: 0.2rem;"
+                    >
+                    <small class="form-hint">Chiedi il codice al creatore dell'asta</small>
+                </div>
+
+                <!-- Auction Preview (shown after code validation) -->
+                <div id="auction-preview" class="auction-preview hidden">
+                    <div class="preview-header">
+                        <h4>Dettagli Asta</h4>
+                    </div>
+                    <div class="preview-content">
+                        <div class="preview-row">
+                            <span class="preview-label">Nome:</span>
+                            <span class="preview-value" id="preview-name">--</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-label">Creatore:</span>
+                            <span class="preview-value" id="preview-creator">--</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-label">Partecipanti:</span>
+                            <span class="preview-value" id="preview-participants">--</span>
+                        </div>
+                        <div class="preview-row">
+                            <span class="preview-label">Budget:</span>
+                            <span class="preview-value" id="preview-budget">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="team-name-input" class="form-group hidden">
+                    <label for="join-team-name" class="form-label">Nome del Tuo Team *</label>
+                    <input 
+                        type="text" 
+                        id="join-team-name" 
+                        class="form-control" 
+                        placeholder="Es: FC Barcelona"
+                        required
+                        disabled
+                    >
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').classList.add('hidden')">
+                    Annulla
+                </button>
+                <button type="button" id="verify-code-btn" class="btn btn-primary">
+                    Verifica Codice
+                </button>
+                <button type="submit" id="confirm-join-btn" class="btn btn-success hidden">
+                    <span class="btn-text">Unisciti</span>
+                    <span class="btn-loader hidden">
+                        <span class="loading"></span>
+                    </span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

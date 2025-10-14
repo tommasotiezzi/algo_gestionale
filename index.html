@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasta - Gestione Aste Fantacalcio</title>
+    
+    <!-- Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS Base - ORDINE IMPORTANTE -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    
+    <!-- CSS Componenti -->
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/auction-setup.css">
+    <link rel="stylesheet" href="css/auction-live.css">
+    <link rel="stylesheet" href="css/teams.css">
+</head>
+<body>
+    <!-- Header -->
+    <header id="main-header" class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="#" class="logo">
+                    <span>⚽</span>
+                    <span class="logo-text">FANTASTA</span>
+                </a>
+                <nav id="main-nav">
+                    <ul>
+                        <li><a href="#" id="nav-dashboard">Dashboard</a></li>
+                        <li><a href="#" id="nav-auction">Asta Live</a></li>
+                        <li><a href="#" id="nav-teams">Rose</a></li>
+                        <li><a href="#" id="nav-profile" class="user-menu">
+                            <span id="username-display">--</span>
+                        </a></li>
+                        <li><a href="#" id="logout-btn" class="logout-button">Esci</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main id="app-container">
+        
+        <!-- Auth Section -->
+        <section id="auth-section" class="auth-container hidden">
+            <!-- Contenuto caricato da auth.html -->
+        </section>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="dashboard-container hidden">
+            <!-- Contenuto caricato da dashboard.html -->
+        </section>
+
+        <!-- Auction Setup Section -->
+        <section id="auction-setup-section" class="auction-setup-container hidden">
+            <!-- Contenuto caricato da auction-setup.html -->
+        </section>
+
+        <!-- Live Auction Section -->
+        <section id="auction-live-section" class="auction-live-container hidden">
+            <!-- Contenuto caricato da auction-live.html -->
+        </section>
+
+        <!-- Teams Section -->
+        <section id="teams-section" class="teams-container hidden">
+            <!-- Contenuto caricato da teams.html -->
+        </section>
+
+    </main>
+
+    <!-- Modals Container -->
+    <div id="modals-container"></div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Core JS - ORDINE IMPORTANTE -->
+    <script src="./js/config.js"></script>
+    <script src="./js/utils.js"></script>
+    <script src="./js/supabase-client.js"></script>
+    
+    <!-- Feature JS -->
+    <script src="./js/auth.js"></script>
+    <script src="./js/dashboard.js"></script>
+    <script src="./js/auction-setup.js"></script>
+    <script src="./js/auction-live.js"></script>
+    <script src="./js/teams-manager.js"></script>
+    
+    <!-- Router e App devono essere caricati per ultimi -->
+    <script src="./js/router.js"></script>
+    <script src="./js/app.js"></script>
+</body>
+</html>
