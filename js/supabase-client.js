@@ -161,30 +161,34 @@ class SupabaseManager {
     // AUCTION METHODS
     // =====================================
     
-    async createAuction(auctionData) {
-        try {
-            const code = await this.generateAuctionCode();
-            
-            const { data, error } = await this.client
-                .from('auctions')
-                .insert({
-                    ...auctionData,
-                    code,
-                    created_by: this.currentUser.id
-                })
-                .select()
-                .single();
-            
-            if (error) throw error;
-            
-            // Auto-join creator to auction
-            await this.joinAuction(data.id, auctionData.creatorTeamName || 'Team Admin');
-            
-            return { success: true, data };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
+async createAuction(auctionData) {
+    try {
+        const code = await this.generateAuctionCode();
+        
+        // Remove creatorTeamName if it exists (it's not part of auctions table)
+        const { creatorTeamName, ...validAuctionData } = auctionData;
+        
+        const { data, error } = await this.client
+            .from('auctions')
+            .insert({
+                ...validAuctionData,
+                code,
+                created_by: this.currentUser.id
+            })
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        // Auto-join creator to auction with default team name
+        const teamName = creatorTeamName || `Team ${this.currentUser.email.split('@')[0]}`;
+        await this.joinAuction(data.id, teamName);
+        
+        return { success: true, data };
+    } catch (error) {
+        return { success: false, error: error.message };
     }
+}
     
     async generateAuctionCode() {
         let code, exists;
@@ -298,22 +302,64 @@ class SupabaseManager {
         }
     }
     
-    async getUserAuctions() {
-        try {
-            const { data, error } = await this.client
-                .from('auctions')
-                .select(`
-                    *,
-                    teams!inner(user_id)
-                `)
-                .or(`created_by.eq.${this.currentUser.id},teams.user_id.eq.${this.currentUser.id}`);
-            
-            if (error) throw error;
-            return { success: true, data };
-        } catch (error) {
+async getUserAuctions() {
+    try {
+        const { data: { user }, error: userError } = await this.client.auth.getUser();
+        
+        if (userError || !user) {
+            return { success: false, error: 'User not authenticated' };
+        }
+
+        // Get all auctions with their teams
+        const { data: auctions, error } = await this.client
+            .from('auctions')
+            .select(`
+                *,
+                teams(
+                    id,
+                    name,
+                    user_id,
+                    budget_remaining
+                ),
+                profiles!auctions_created_by_fkey(
+                    id,
+                    username,
+                    email
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Supabase error:', error);
             return { success: false, error: error.message };
         }
+
+        // Filter client-side to get auctions where user is creator OR has a team
+        const userAuctions = auctions.filter(auction => {
+            const isCreator = auction.created_by === user.id;
+            const hasTeam = auction.teams?.some(team => team.user_id === user.id);
+            return isCreator || hasTeam;
+        });
+
+        // Map to add created_by_profile property
+        const processedAuctions = userAuctions.map(auction => ({
+            ...auction,
+            created_by_profile: auction.profiles
+        }));
+
+        return { 
+            success: true, 
+            data: processedAuctions 
+        };
+
+    } catch (error) {
+        console.error('Error in getUserAuctions:', error);
+        return { 
+            success: false, 
+            error: error.message || 'Failed to fetch auctions' 
+        };
     }
+}
     
     async updateAuctionStatus(auctionId, status) {
         try {
