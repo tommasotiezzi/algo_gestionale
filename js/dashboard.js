@@ -364,7 +364,6 @@ class DashboardManager {
         // Get form data
         const auctionData = {
             name: document.getElementById('auction-name').value.trim(),
-            creatorTeamName: document.getElementById('creator-team-name').value.trim(),
             budget: parseInt(document.getElementById('auction-budget').value),
             num_partecipanti: parseInt(document.getElementById('auction-participants').value),
             max_portieri: parseInt(document.getElementById('max-portieri').value),
@@ -406,10 +405,13 @@ class DashboardManager {
                 // Store auction ID for navigation
                 Utils.storage.set(CONFIG.STORAGE_KEYS.CURRENT_AUCTION, result.data.id);
                 
-                // Navigate to auction setup
+                // Show message to join auction with code
+                Utils.toast(`Usa il codice ${result.data.code} per unirti all'asta`, 'info', 5000);
+                
+                // Navigate to auction setup after delay
                 setTimeout(() => {
                     window.router.navigate('auction-setup');
-                }, 500);
+                }, 2000);
             } else {
                 Utils.toast(result.error || 'Errore nella creazione dell\'asta', 'error');
             }
