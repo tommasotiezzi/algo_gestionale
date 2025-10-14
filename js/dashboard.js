@@ -84,32 +84,33 @@ class DashboardManager {
         }
     }
     
-    async loadAuctions() {
-        if (this.isLoading) return;
-        this.isLoading = true;
+   // In dashboard.js, around line 15
+async loadAuctions() {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
         
-        // Show loading state
-        this.showLoadingState();
-        
-        try {
-            const result = await supabaseManager.getUserAuctions();
-            
-            if (result.success) {
-                this.auctions = result.data || [];
-                this.updateStats();
-                this.filterAuctions(this.currentFilter);
-            } else {
-                console.error('Failed to load auctions:', result.error);
-                this.showEmptyState();
-            }
-        } catch (error) {
-            console.error('Error loading auctions:', error);
-            Utils.toast('Errore nel caricamento delle aste', 'error');
-            this.showEmptyState();
-        } finally {
-            this.isLoading = false;
+        if (!user) {
+            throw new Error('User not authenticated');
         }
+
+        // Simplified query - get auctions where user has a team
+        const { data: auctions, error } = await supabase
+            .from('auctions')
+            .select(`
+                *,
+                teams!inner(*)
+            `)
+            .eq('teams.user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        return auctions;
+    } catch (error) {
+        console.error('Error loading auctions:', error);
+        throw error;
     }
+}
     
     updateStats() {
         const stats = {
