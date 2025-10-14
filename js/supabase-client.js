@@ -302,13 +302,19 @@ async createAuction(auctionData) {
         }
     }
     
+// In supabase-client.js - Replace getUserAuctions method (around line 130)
+
 async getUserAuctions() {
     try {
-        const { data: { user }, error: userError } = await this.client.auth.getUser();
+        // Use the stored currentUser instead of calling getUser
+        const user = this.currentUser;
         
-        if (userError || !user) {
+        if (!user) {
+            console.warn('No current user');
             return { success: false, error: 'User not authenticated' };
         }
+
+        console.log('Getting auctions for user:', user.id);
 
         // Get all auctions with their teams
         const { data: auctions, error } = await this.client
@@ -335,29 +341,18 @@ async getUserAuctions() {
         }
 
         // Filter client-side to get auctions where user is creator OR has a team
-        const userAuctions = auctions.filter(auction => {
+        const userAuctions = (auctions || []).filter(auction => {
             const isCreator = auction.created_by === user.id;
             const hasTeam = auction.teams?.some(team => team.user_id === user.id);
             return isCreator || hasTeam;
         });
 
-        // Map to add created_by_profile property
-        const processedAuctions = userAuctions.map(auction => ({
-            ...auction,
-            created_by_profile: auction.profiles
-        }));
-
-        return { 
-            success: true, 
-            data: processedAuctions 
-        };
-
+        console.log('User auctions:', userAuctions);
+        return { success: true, data: userAuctions };
+        
     } catch (error) {
         console.error('Error in getUserAuctions:', error);
-        return { 
-            success: false, 
-            error: error.message || 'Failed to fetch auctions' 
-        };
+        return { success: false, error: error.message };
     }
 }
     
