@@ -1,6 +1,9 @@
 // =====================================
 // DASHBOARD MANAGER
 // =====================================
+// =====================================
+// DASHBOARD MANAGER
+// =====================================
 
 class DashboardManager {
     constructor() {
@@ -11,55 +14,7 @@ class DashboardManager {
         this.isLoading = false;
     }
     
-    async init() {async loadAuctions() {
-    try {
-        // Use supabaseManager instead of supabase directly
-        const user = supabaseManager.currentUser;
-        
-        if (!user) {
-            console.warn('User not authenticated');
-            this.auctions = [];
-            this.renderAuctions();
-            return;
-        }
-
-        console.log('Loading auctions for user:', user.id);
-
-        // Get auctions using the manager's client
-        const { data: auctions, error } = await supabaseManager.client
-            .from('auctions')
-            .select(`
-                *,
-                teams!inner(
-                    id,
-                    name,
-                    user_id,
-                    budget_remaining,
-                    is_ready
-                ),
-                profiles!auctions_created_by_fkey(
-                    username
-                )
-            `)
-            .eq('teams.user_id', user.id)
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error loading auctions:', error);
-            throw error;
-        }
-        
-        console.log('Loaded auctions:', auctions);
-        this.auctions = auctions || [];
-        this.renderAuctions();
-        
-    } catch (error) {
-        console.error('Error in loadAuctions:', error);
-        Utils.toast('Errore nel caricamento delle aste', 'error');
-        this.auctions = [];
-        this.renderAuctions();
-    }
-}
+    async init() {
         console.log('Initializing Dashboard...');
         this.setupEventListeners();
         await this.loadAuctions();
@@ -132,58 +87,60 @@ class DashboardManager {
         }
     }
     
-   // In dashboard.js, around line 15
-// In dashboard.js - Replace the loadAuctions method (around line 90)
+    async loadAuctions() {
+        try {
+            this.showLoadingState();
+            
+            // Use supabaseManager instead of supabase directly
+            const user = supabaseManager.currentUser;
+            
+            if (!user) {
+                console.warn('User not authenticated');
+                this.auctions = [];
+                this.showEmptyState();
+                return;
+            }
 
-async loadAuctions() {
-    try {
-        // Use supabaseManager instead of supabase directly
-        const user = supabaseManager.currentUser;
-        
-        if (!user) {
-            console.warn('User not authenticated');
-            this.auctions = [];
+            console.log('Loading auctions for user:', user.id);
+
+            // Get auctions using the manager's client
+            const { data: auctions, error } = await supabaseManager.client
+                .from('auctions')
+                .select(`
+                    *,
+                    teams!inner(
+                        id,
+                        name,
+                        user_id,
+                        budget_remaining,
+                        is_ready
+                    ),
+                    profiles!auctions_created_by_fkey(
+                        username
+                    )
+                `)
+                .eq('teams.user_id', user.id)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error loading auctions:', error);
+                throw error;
+            }
+            
+            console.log('Loaded auctions:', auctions);
+            this.auctions = auctions || [];
+            this.updateStats();
             this.renderAuctions();
-            return;
+            
+        } catch (error) {
+            console.error('Error in loadAuctions:', error);
+            Utils.toast('Errore nel caricamento delle aste', 'error');
+            this.auctions = [];
+            this.showEmptyState();
         }
-
-        console.log('Loading auctions for user:', user.id);
-
-        // Get auctions using the manager's client
-        const { data: auctions, error } = await supabaseManager.client
-            .from('auctions')
-            .select(`
-                *,
-                teams!inner(
-                    id,
-                    name,
-                    user_id,
-                    budget_remaining,
-                    is_ready
-                ),
-                profiles!auctions_created_by_fkey(
-                    username
-                )
-            `)
-            .eq('teams.user_id', user.id)
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error loading auctions:', error);
-            throw error;
-        }
-        
-        console.log('Loaded auctions:', auctions);
-        this.auctions = auctions || [];
-        this.renderAuctions();
-        
-    } catch (error) {
-        console.error('Error in loadAuctions:', error);
-        Utils.toast('Errore nel caricamento delle aste', 'error');
-        this.auctions = [];
-        this.renderAuctions();
     }
-}
+    
+    // Continue with your other methods below...
     
     updateStats() {
         const stats = {
