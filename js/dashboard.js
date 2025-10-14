@@ -11,7 +11,55 @@ class DashboardManager {
         this.isLoading = false;
     }
     
-    async init() {
+    async init() {async loadAuctions() {
+    try {
+        // Use supabaseManager instead of supabase directly
+        const user = supabaseManager.currentUser;
+        
+        if (!user) {
+            console.warn('User not authenticated');
+            this.auctions = [];
+            this.renderAuctions();
+            return;
+        }
+
+        console.log('Loading auctions for user:', user.id);
+
+        // Get auctions using the manager's client
+        const { data: auctions, error } = await supabaseManager.client
+            .from('auctions')
+            .select(`
+                *,
+                teams!inner(
+                    id,
+                    name,
+                    user_id,
+                    budget_remaining,
+                    is_ready
+                ),
+                profiles!auctions_created_by_fkey(
+                    username
+                )
+            `)
+            .eq('teams.user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error loading auctions:', error);
+            throw error;
+        }
+        
+        console.log('Loaded auctions:', auctions);
+        this.auctions = auctions || [];
+        this.renderAuctions();
+        
+    } catch (error) {
+        console.error('Error in loadAuctions:', error);
+        Utils.toast('Errore nel caricamento delle aste', 'error');
+        this.auctions = [];
+        this.renderAuctions();
+    }
+}
         console.log('Initializing Dashboard...');
         this.setupEventListeners();
         await this.loadAuctions();
@@ -85,30 +133,55 @@ class DashboardManager {
     }
     
    // In dashboard.js, around line 15
+// In dashboard.js - Replace the loadAuctions method (around line 90)
+
 async loadAuctions() {
     try {
-        const { data: { user } } = await supabase.auth.getUser();
+        // Use supabaseManager instead of supabase directly
+        const user = supabaseManager.currentUser;
         
         if (!user) {
-            throw new Error('User not authenticated');
+            console.warn('User not authenticated');
+            this.auctions = [];
+            this.renderAuctions();
+            return;
         }
 
-        // Simplified query - get auctions where user has a team
-        const { data: auctions, error } = await supabase
+        console.log('Loading auctions for user:', user.id);
+
+        // Get auctions using the manager's client
+        const { data: auctions, error } = await supabaseManager.client
             .from('auctions')
             .select(`
                 *,
-                teams!inner(*)
+                teams!inner(
+                    id,
+                    name,
+                    user_id,
+                    budget_remaining,
+                    is_ready
+                ),
+                profiles!auctions_created_by_fkey(
+                    username
+                )
             `)
             .eq('teams.user_id', user.id)
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error loading auctions:', error);
+            throw error;
+        }
         
-        return auctions;
+        console.log('Loaded auctions:', auctions);
+        this.auctions = auctions || [];
+        this.renderAuctions();
+        
     } catch (error) {
-        console.error('Error loading auctions:', error);
-        throw error;
+        console.error('Error in loadAuctions:', error);
+        Utils.toast('Errore nel caricamento delle aste', 'error');
+        this.auctions = [];
+        this.renderAuctions();
     }
 }
     
