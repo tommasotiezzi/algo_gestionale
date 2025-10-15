@@ -1,5 +1,5 @@
 // =====================================
-// AUCTION LIVE MANAGER
+// AUCTION LIVE MANAGER - NEW VERSION
 // =====================================
 
 class AuctionLiveManager {
@@ -10,16 +10,27 @@ class AuctionLiveManager {
         this.players = [];
         this.filteredPlayers = [];
         this.calledPlayers = new Set();
+        this.boughtPlayers = {};
+        this.rosters = {};
         this.currentPlayer = null;
         this.currentBid = null;
         this.myTeam = null;
         this.isMyTurn = false;
         this.timerInterval = null;
         this.timeRemaining = 0;
-        this.currentFilter = 'all';
-        this.currentView = 'grid';
-        this.searchQuery = '';
         this.realtimeChannel = null;
+        
+        // Filter states
+        this.dropdownFilter = 'all'; // all, P, D, C, A
+        this.showOnlyAvailable = true;
+        this.useModifier = false; // mod/nomod toggle
+        this.selectedPlayerId = null;
+        
+        // Sidebar states
+        this.sidebarOpen = false;
+        this.sidebarFilter = 'all';
+        this.sidebarSearch = '';
+        this.sidebarView = 'grid';
     }
     
     async init() {
@@ -39,9 +50,13 @@ class AuctionLiveManager {
         // Load initial data
         await this.loadAuction();
         await this.loadPlayers();
+        await this.loadRosters();
         
         // Setup realtime
         this.setupRealtimeSubscription();
+        
+        // Initial render
+        this.renderAll();
         
         // Start timer if needed
         if (this.auction?.timer_enabled && this.currentBid) {
@@ -50,48 +65,114 @@ class AuctionLiveManager {
     }
     
     setupEventListeners() {
+        // Sidebar toggle
+        document.getElementById('toggle-players-sidebar')?.addEventListener('click', () => {
+            this.toggleSidebar();
+        });
+        
+        document.getElementById('close-sidebar')?.addEventListener('click', () => {
+            this.closeSidebar();
+        });
+        
         // Pause button
         document.getElementById('pause-btn')?.addEventListener('click', () => this.pauseAuction());
         
-        // Filter buttons
-        document.querySelectorAll('.filter-btn').forEach(btn => {
+        // Battitore controls
+        document.getElementById('player-selector')?.addEventListener('change', (e) => {
+            this.selectedPlayerId = e.target.value ? parseInt(e.target.value) : null;
+            this.updateCallButton();
+        });
+        
+        // Role filter buttons
+        document.querySelectorAll('.role-filter-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                this.filterPlayers(e.target.dataset.role);
+                this.dropdownFilter = e.target.dataset.role;
+                document.querySelectorAll('.role-filter-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.populatePlayerDropdown();
             });
         });
         
-        // Search input
-        const searchInput = document.getElementById('player-search');
-        if (searchInput) {
-            searchInput.addEventListener('input', Utils.debounce((e) => {
-                this.searchPlayers(e.target.value);
-            }, 300));
-        }
+        // Available filter checkbox
+        document.getElementById('show-only-available')?.addEventListener('change', (e) => {
+            this.showOnlyAvailable = e.target.checked;
+            this.populatePlayerDropdown();
+        });
         
-        // View toggle
-        document.querySelectorAll('.view-btn').forEach(btn => {
+        // Mod/NoMod toggle
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                this.toggleView(e.target.dataset.view);
+                const mode = e.target.dataset.mode;
+                this.useModifier = (mode === 'mod');
+                document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                // Re-sort and render sidebar players
+                this.sortPlayers();
+                this.renderSidebarPlayers();
             });
+        });
+        
+        // Call player button
+        document.getElementById('call-player-btn')?.addEventListener('click', () => {
+            this.callPlayer();
         });
         
         // Bid controls
         document.getElementById('bid-minus')?.addEventListener('click', () => this.adjustBid(-1));
         document.getElementById('bid-plus')?.addEventListener('click', () => this.adjustBid(1));
         document.getElementById('bid-btn')?.addEventListener('click', () => this.placeBid());
-        document.getElementById('pass-btn')?.addEventListener('click', () => this.passTurn());
+        document.getElementById('assign-btn')?.addEventListener('click', () => this.showAssignmentModal());
         
         // Bid input validation
         const bidInput = document.getElementById('bid-input');
         if (bidInput) {
             bidInput.addEventListener('change', (e) => {
-                const minBid = (this.currentBid?.amount || 0) + 1;
+                const minBid = this.getMinBid();
                 if (parseInt(e.target.value) < minBid) {
                     e.target.value = minBid;
                 }
             });
         }
+        
+        // Sidebar filters
+        document.querySelectorAll('.sidebar-filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.sidebarFilter = e.target.dataset.role;
+                document.querySelectorAll('.sidebar-filter-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.renderSidebarPlayers();
+            });
+        });
+        
+        // Sidebar search
+        const sidebarSearch = document.getElementById('sidebar-player-search');
+        if (sidebarSearch) {
+            sidebarSearch.addEventListener('input', Utils.debounce((e) => {
+                this.sidebarSearch = e.target.value.toLowerCase();
+                this.renderSidebarPlayers();
+            }, 300));
+        }
+        
+        // Sidebar view toggle
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.sidebarView = e.target.dataset.view;
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.renderSidebarPlayers();
+            });
+        });
+        
+        // Confirm assignment modal
+        document.getElementById('confirm-assignment-btn')?.addEventListener('click', () => {
+            this.confirmAssignment();
+        });
     }
+    
+    // ===================================
+    // DATA LOADING
+    // ===================================
     
     async loadAuction() {
         try {
@@ -112,12 +193,8 @@ class AuctionLiveManager {
             // Check if it's my turn
             this.checkTurn();
             
-            // Update UI
-            this.updateAuctionUI();
-            this.updateTeamsDisplay();
-            
-            // Load called players
-            await this.loadCalledPlayers();
+            // Update header
+            document.getElementById('live-auction-name').textContent = this.auction.name;
             
         } catch (error) {
             console.error('Error loading auction:', error);
@@ -127,17 +204,6 @@ class AuctionLiveManager {
     
     async loadPlayers() {
         try {
-            // Show loading
-            const container = document.getElementById('players-container');
-            if (container) {
-                container.innerHTML = `
-                    <div class="players-loading">
-                        <div class="loading"></div>
-                        <p>Caricamento giocatori...</p>
-                    </div>
-                `;
-            }
-            
             const result = await supabaseManager.getPlayers({
                 auctionId: this.auctionId
             });
@@ -145,25 +211,20 @@ class AuctionLiveManager {
             if (result.success) {
                 this.players = result.data || [];
                 
-                // Get dynamic column suffix based on auction settings
-                const suffix = `_${this.auction.num_partecipanti}_${this.myTeam?.has_modifier ? 'mod' : 'nomod'}`;
-                
-                // Add calculated fields to players
+                // Add calculated fields for both mod and nomod
+                const suffix = `_${this.auction.num_partecipanti}`;
                 this.players = this.players.map(player => ({
                     ...player,
-                    ia_value: player[`IA${suffix}`] || 0,
-                    slot_value: player[`Slot${suffix}`] || null,
-                    budget_max: player[`Budget MAX${suffix}`] || 0
+                    ia_mod: player[`IA${suffix}_mod`] || 0,
+                    ia_nomod: player[`IA${suffix}_nomod`] || 0,
+                    slot_mod: player[`Slot${suffix}_mod`] || null,
+                    slot_nomod: player[`Slot${suffix}_nomod`] || null,
+                    budget_max_mod: player[`Budget MAX${suffix}_mod`] || 0,
+                    budget_max_nomod: player[`Budget MAX${suffix}_nomod`] || 0
                 }));
                 
-                // Sort by slot then IA
-                this.players = Utils.sortPlayersBySlotAndIA(
-                    this.players, 
-                    this.auction.num_partecipanti, 
-                    this.myTeam?.has_modifier || false
-                );
-                
-                this.filterPlayers(this.currentFilter);
+                // Sort players
+                this.sortPlayers();
             }
             
         } catch (error) {
@@ -172,30 +233,594 @@ class AuctionLiveManager {
         }
     }
     
-    async loadCalledPlayers() {
+    async loadRosters() {
         try {
-            const { data } = await supabaseManager.client
+            // Load all rosters for this auction
+            const { data: rosters } = await supabaseManager.client
+                .from('rosters')
+                .select('*')
+                .eq('auction_id', this.auctionId);
+            
+            // Organize by team
+            this.rosters = {};
+            this.teams.forEach(team => {
+                this.rosters[team.id] = {
+                    P: [],
+                    D: [],
+                    C: [],
+                    A: []
+                };
+            });
+            
+            // Fill rosters
+            rosters?.forEach(roster => {
+                const player = this.players.find(p => p.Id === roster.player_id);
+                if (player && this.rosters[roster.team_id]) {
+                    this.rosters[roster.team_id][player.R].push({
+                        ...player,
+                        purchase_price: roster.purchase_price
+                    });
+                    
+                    // Mark as bought
+                    this.boughtPlayers[roster.player_id] = {
+                        team_id: roster.team_id,
+                        team_name: this.teams.find(t => t.id === roster.team_id)?.name || '---'
+                    };
+                }
+            });
+            
+            // Load called players
+            const { data: called } = await supabaseManager.client
                 .from('called_players')
                 .select('player_id')
                 .eq('auction_id', this.auctionId);
             
-            this.calledPlayers = new Set(data?.map(cp => cp.player_id) || []);
-            
-            // Also load rosters to mark bought players
-            const { data: rosters } = await supabaseManager.client
-                .from('rosters')
-                .select('player_id, team:teams(name)')
-                .eq('auction_id', this.auctionId);
-            
-            // Store bought players info
-            this.boughtPlayers = {};
-            rosters?.forEach(roster => {
-                this.boughtPlayers[roster.player_id] = roster.team?.name || 'Acquistato';
-            });
+            this.calledPlayers = new Set(called?.map(cp => cp.player_id) || []);
             
         } catch (error) {
-            console.error('Error loading called players:', error);
+            console.error('Error loading rosters:', error);
         }
+    }
+    
+    // ===================================
+    // PLAYER SORTING
+    // ===================================
+    
+    sortPlayers() {
+        const suffix = this.useModifier ? '_mod' : '_nomod';
+        
+        this.players.sort((a, b) => {
+            const slotA = a[`slot${suffix}`] || 999;
+            const slotB = b[`slot${suffix}`] || 999;
+            
+            if (slotA !== slotB) {
+                return slotA - slotB;
+            }
+            
+            const iaA = a[`ia${suffix}`] || 0;
+            const iaB = b[`ia${suffix}`] || 0;
+            
+            return iaB - iaA; // Higher IA first
+        });
+    }
+    
+    // ===================================
+    // RENDERING
+    // ===================================
+    
+    renderAll() {
+        this.populatePlayerDropdown();
+        this.renderTeamsGrid();
+        this.renderSidebarPlayers();
+        this.updateBidControls();
+    }
+    
+    populatePlayerDropdown() {
+        const dropdown = document.getElementById('player-selector');
+        if (!dropdown) return;
+        
+        // Filter players
+        let filtered = this.players;
+        
+        // Role filter
+        if (this.dropdownFilter !== 'all') {
+            filtered = filtered.filter(p => p.R === this.dropdownFilter);
+        }
+        
+        // Available filter
+        if (this.showOnlyAvailable) {
+            filtered = filtered.filter(p => !this.boughtPlayers[p.Id]);
+        }
+        
+        // Clear and populate
+        dropdown.innerHTML = '<option value="">-- Scegli un giocatore --</option>';
+        
+        const suffix = this.useModifier ? '_mod' : '_nomod';
+        
+        filtered.forEach(player => {
+            const isBought = this.boughtPlayers[player.Id];
+            const option = document.createElement('option');
+            option.value = player.Id;
+            option.textContent = `${player.R} - ${player.Nome} (${player.Squadra}) - Slot: ${player[`slot${suffix}`] || '-'} - IA: ${player[`ia${suffix}`] || '-'}`;
+            
+            if (isBought) {
+                option.textContent += ` [${isBought.team_name}]`;
+                option.disabled = true;
+            }
+            
+            dropdown.appendChild(option);
+        });
+        
+        // Reset selection
+        this.selectedPlayerId = null;
+        this.updateCallButton();
+    }
+    
+    renderTeamsGrid() {
+        const container = document.getElementById('rose-grid');
+        if (!container) return;
+        
+        container.innerHTML = this.teams.map(team => {
+            const roster = this.rosters[team.id] || { P: [], D: [], C: [], A: [] };
+            const maxP = this.auction.max_portieri || 3;
+            const maxD = this.auction.max_difensori || 8;
+            const maxC = this.auction.max_centrocampisti || 8;
+            const maxA = this.auction.max_attaccanti || 6;
+            
+            const totalPlayers = roster.P.length + roster.D.length + roster.C.length + roster.A.length;
+            const maxPlayers = maxP + maxD + maxC + maxA;
+            const progressPercent = (totalPlayers / maxPlayers) * 100;
+            
+            const isCurrentTurn = this.auction.current_turn_team_id === team.id;
+            const isCurrentBidder = this.currentBid?.team_id === team.id;
+            
+            let classes = ['team-column'];
+            if (isCurrentTurn) classes.push('has-turn');
+            if (isCurrentBidder) classes.push('current-bidder');
+            
+            return `
+                <div class="${classes.join(' ')}">
+                    <div class="team-column-header">
+                        ${isCurrentTurn ? '<div class="turn-indicator">👤</div>' : ''}
+                        <div class="team-name">${team.name}</div>
+                        <div class="team-budget">${team.budget_remaining} €</div>
+                    </div>
+                    <div class="team-roster">
+                        <div class="roster-item">
+                            <span style="color: var(--role-p)">P:</span>
+                            <span>${roster.P.length} / ${maxP}</span>
+                        </div>
+                        <div class="roster-item">
+                            <span style="color: var(--role-d)">D:</span>
+                            <span>${roster.D.length} / ${maxD}</span>
+                        </div>
+                        <div class="roster-item">
+                            <span style="color: var(--role-c)">C:</span>
+                            <span>${roster.C.length} / ${maxC}</span>
+                        </div>
+                        <div class="roster-item">
+                            <span style="color: var(--role-a)">A:</span>
+                            <span>${roster.A.length} / ${maxA}</span>
+                        </div>
+                    </div>
+                    <div class="team-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    renderSidebarPlayers() {
+        const container = document.getElementById('sidebar-players-container');
+        if (!container) return;
+        
+        // Filter players
+        let filtered = this.players;
+        
+        // Role filter
+        if (this.sidebarFilter !== 'all') {
+            filtered = filtered.filter(p => p.R === this.sidebarFilter);
+        }
+        
+        // Search filter
+        if (this.sidebarSearch) {
+            filtered = filtered.filter(p => 
+                p.Nome.toLowerCase().includes(this.sidebarSearch) ||
+                p.Squadra.toLowerCase().includes(this.sidebarSearch)
+            );
+        }
+        
+        const suffix = this.useModifier ? '_mod' : '_nomod';
+        const gridClass = this.sidebarView === 'grid' ? 'sidebar-players-grid' : 'sidebar-players-grid list-view';
+        
+        container.innerHTML = `
+            <div class="${gridClass}">
+                ${filtered.map(player => {
+                    const isBought = this.boughtPlayers[player.Id];
+                    const isSelected = this.selectedPlayerId === player.Id;
+                    const roleColor = Utils.getRoleColor(player.R);
+                    
+                    return `
+                        <div class="sidebar-player-card ${isBought ? 'bought' : ''} ${isSelected ? 'selected' : ''}"
+                             data-player-id="${player.Id}"
+                             onclick="window.auctionLiveManager.selectPlayerFromSidebar(${player.Id})">
+                            ${isBought ? `<div class="player-owner-badge">${isBought.team_name}</div>` : ''}
+                            <div class="sidebar-player-role" style="color: ${roleColor}">${player.R}</div>
+                            <div class="sidebar-player-name">${player.Nome}</div>
+                            <div class="sidebar-player-team">${player.Squadra}</div>
+                            <div class="sidebar-player-stats">
+                                <span>IA: ${player[`ia${suffix}`] || '-'}</span>
+                                <span>Slot: ${player[`slot${suffix}`] || '-'}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+    
+    // ===================================
+    // PLAYER ACTIONS
+    // ===================================
+    
+    selectPlayerFromSidebar(playerId) {
+        // Don't allow selecting bought players
+        if (this.boughtPlayers[playerId]) {
+            Utils.toast('Giocatore già acquistato', 'warning');
+            return;
+        }
+        
+        this.selectedPlayerId = playerId;
+        
+        // Update dropdown to match
+        const dropdown = document.getElementById('player-selector');
+        if (dropdown) {
+            dropdown.value = playerId;
+        }
+        
+        // Update UI
+        this.updateCallButton();
+        this.renderSidebarPlayers();
+    }
+    
+    async callPlayer() {
+        if (!this.selectedPlayerId) {
+            Utils.toast('Seleziona un giocatore prima', 'warning');
+            return;
+        }
+        
+        const player = this.players.find(p => p.Id === this.selectedPlayerId);
+        if (!player) return;
+        
+        try {
+            // Mark player as called
+            const { error: calledError } = await supabaseManager.client
+                .from('called_players')
+                .insert({
+                    auction_id: this.auctionId,
+                    player_id: player.Id
+                });
+            
+            if (calledError) throw calledError;
+            
+            // Set as current player in auction
+            const { error: auctionError } = await supabaseManager.client
+                .from('auctions')
+                .update({ current_player_id: player.Id })
+                .eq('id', this.auctionId);
+            
+            if (auctionError) throw auctionError;
+            
+            // Get starting price
+            const startPrice = this.auction.starting_price_type === 'qt_a' 
+                ? (player.qt_a || 1) 
+                : 1;
+            
+            // Create initial bid
+            const { error: bidError } = await supabaseManager.client
+                .from('current_bids')
+                .insert({
+                    auction_id: this.auctionId,
+                    player_id: player.Id,
+                    team_id: this.myTeam?.id || this.teams[0].id,
+                    amount: startPrice
+                });
+            
+            if (bidError) throw bidError;
+            
+            Utils.toast(`Giocatore ${player.Nome} chiamato!`, 'success');
+            
+            // Reload data
+            await this.loadAuction();
+            this.displayCalledPlayer(player);
+            
+        } catch (error) {
+            console.error('Error calling player:', error);
+            Utils.toast('Errore nella chiamata del giocatore', 'error');
+        }
+    }
+    
+    displayCalledPlayer(player) {
+        this.currentPlayer = player;
+        
+        // Hide no-player state
+        document.getElementById('no-player-state')?.classList.add('hidden');
+        
+        // Show player display
+        const display = document.getElementById('called-player-display');
+        if (display) {
+            display.classList.remove('hidden');
+            
+            // Set role badge
+            const roleEl = document.getElementById('player-role-large');
+            if (roleEl) {
+                roleEl.textContent = player.R;
+                roleEl.style.color = Utils.getRoleColor(player.R);
+            }
+            
+            // Set player info
+            document.getElementById('player-name-large').textContent = player.Nome;
+            document.getElementById('player-team-large').textContent = player.Squadra;
+            
+            // Set stats based on current modifier
+            const suffix = this.useModifier ? '_mod' : '_nomod';
+            document.getElementById('player-qt').textContent = player.qt_a || '-';
+            document.getElementById('player-ia').textContent = player[`ia${suffix}`] || '-';
+            document.getElementById('player-slot').textContent = player[`slot${suffix}`] || '-';
+            document.getElementById('player-budget-max').textContent = player[`budget_max${suffix}`] || '-';
+            document.getElementById('player-titolarita').textContent = player.Titolarità || '-';
+            document.getElementById('player-mv').textContent = player.mv_all_time || '-';
+            document.getElementById('player-fm').textContent = player.fantamedia_all_time || '-';
+            document.getElementById('player-pma').textContent = player.PMA || '-';
+        }
+        
+        // Update bid display
+        this.updateBidDisplay();
+        this.updateBidControls();
+    }
+    
+    updateBidDisplay() {
+        if (!this.currentBid) return;
+        
+        const team = this.teams.find(t => t.id === this.currentBid.team_id);
+        
+        document.getElementById('current-bid-amount').textContent = `${this.currentBid.amount} €`;
+        document.getElementById('current-bid-team').textContent = team?.name || '---';
+        
+        // Update bid input
+        const minBid = this.getMinBid();
+        const bidInput = document.getElementById('bid-input');
+        if (bidInput) {
+            bidInput.min = minBid;
+            bidInput.value = minBid;
+        }
+    }
+    
+    getMinBid() {
+        return (this.currentBid?.amount || 0) + 1;
+    }
+    
+    adjustBid(delta) {
+        const input = document.getElementById('bid-input');
+        if (!input) return;
+        
+        const currentValue = parseInt(input.value) || this.getMinBid();
+        const newValue = currentValue + delta;
+        const minBid = this.getMinBid();
+        
+        if (newValue >= minBid) {
+            input.value = newValue;
+        }
+    }
+    
+    async placeBid() {
+        if (!this.currentPlayer || !this.myTeam) return;
+        
+        const bidAmount = parseInt(document.getElementById('bid-input')?.value);
+        const minBid = this.getMinBid();
+        
+        if (bidAmount < minBid) {
+            Utils.toast(`Offerta minima: ${minBid} €`, 'warning');
+            return;
+        }
+        
+        if (bidAmount > this.myTeam.budget_remaining) {
+            Utils.toast('Budget insufficiente', 'error');
+            return;
+        }
+        
+        try {
+            // Update current bid
+            const { error } = await supabaseManager.client
+                .from('current_bids')
+                .update({
+                    team_id: this.myTeam.id,
+                    amount: bidAmount
+                })
+                .eq('auction_id', this.auctionId)
+                .eq('player_id', this.currentPlayer.Id);
+            
+            if (error) throw error;
+            
+            Utils.toast('Offerta effettuata!', 'success');
+            
+            // Reload auction data
+            await this.loadAuction();
+            this.updateBidDisplay();
+            this.renderTeamsGrid();
+            
+            // Restart timer if enabled
+            if (this.auction.timer_enabled) {
+                this.startTimer(this.auction.timer_seconds);
+            }
+            
+        } catch (error) {
+            console.error('Error placing bid:', error);
+            Utils.toast('Errore nel rilancio', 'error');
+        }
+    }
+    
+    showAssignmentModal() {
+        if (!this.currentPlayer || !this.currentBid) return;
+        
+        const team = this.teams.find(t => t.id === this.currentBid.team_id);
+        if (!team) return;
+        
+        // Check budget
+        const budgetWarning = document.getElementById('confirm-budget-warning');
+        if (this.currentBid.amount > team.budget_remaining) {
+            budgetWarning.textContent = '⚠️ Attenzione: budget insufficiente!';
+            budgetWarning.style.display = 'block';
+        } else {
+            budgetWarning.style.display = 'none';
+        }
+        
+        // Set modal content
+        document.getElementById('confirm-player-name').textContent = this.currentPlayer.Nome;
+        document.getElementById('confirm-team-name').textContent = team.name;
+        document.getElementById('confirm-amount').textContent = `${this.currentBid.amount} €`;
+        
+        // Show modal
+        document.getElementById('confirm-assignment-modal')?.classList.remove('hidden');
+    }
+    
+    async confirmAssignment() {
+        if (!this.currentPlayer || !this.currentBid) return;
+        
+        const team = this.teams.find(t => t.id === this.currentBid.team_id);
+        if (!team) return;
+        
+        try {
+            // Add to roster
+            const { error: rosterError } = await supabaseManager.client
+                .from('rosters')
+                .insert({
+                    auction_id: this.auctionId,
+                    team_id: team.id,
+                    player_id: this.currentPlayer.Id,
+                    purchase_price: this.currentBid.amount
+                });
+            
+            if (rosterError) throw rosterError;
+            
+            // Update team budget
+            const newBudget = team.budget_remaining - this.currentBid.amount;
+            const { error: budgetError } = await supabaseManager.client
+                .from('teams')
+                .update({ budget_remaining: newBudget })
+                .eq('id', team.id);
+            
+            if (budgetError) throw budgetError;
+            
+            // Clear current bid
+            const { error: bidDeleteError } = await supabaseManager.client
+                .from('current_bids')
+                .delete()
+                .eq('auction_id', this.auctionId)
+                .eq('player_id', this.currentPlayer.Id);
+            
+            if (bidDeleteError) throw bidDeleteError;
+            
+            // Clear current player from auction
+            const { error: clearPlayerError } = await supabaseManager.client
+                .from('auctions')
+                .update({ current_player_id: null })
+                .eq('id', this.auctionId);
+            
+            if (clearPlayerError) throw clearPlayerError;
+            
+            // Advance turn if needed
+            if (this.auction.auction_type === 'turn' || this.auction.bid_mode === 'fixed_turns') {
+                await this.advanceTurn();
+            }
+            
+            // Hide confirm modal
+            document.getElementById('confirm-assignment-modal')?.classList.add('hidden');
+            
+            // Show winner modal
+            this.showWinnerModal(team);
+            
+            // Reload data
+            await this.loadAuction();
+            await this.loadRosters();
+            
+            // Reset UI
+            this.resetPlayerDisplay();
+            this.renderAll();
+            
+        } catch (error) {
+            console.error('Error assigning player:', error);
+            Utils.toast('Errore nell\'assegnazione', 'error');
+        }
+    }
+    
+    showWinnerModal(team) {
+        const modal = document.getElementById('winner-modal');
+        if (!modal) return;
+        
+        document.getElementById('winner-role').textContent = this.currentPlayer.R;
+        document.getElementById('winner-role').style.color = Utils.getRoleColor(this.currentPlayer.R);
+        document.getElementById('winner-player-name').textContent = this.currentPlayer.Nome;
+        document.getElementById('winner-team-name').textContent = team.name;
+        document.getElementById('winner-price').textContent = `${this.currentBid.amount} €`;
+        
+        modal.classList.remove('hidden');
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 3000);
+    }
+    
+    resetPlayerDisplay() {
+        this.currentPlayer = null;
+        this.selectedPlayerId = null;
+        
+        document.getElementById('called-player-display')?.classList.add('hidden');
+        document.getElementById('no-player-state')?.classList.remove('hidden');
+        
+        const dropdown = document.getElementById('player-selector');
+        if (dropdown) dropdown.value = '';
+        
+        this.updateCallButton();
+    }
+    
+    async advanceTurn() {
+        // Find next team in order
+        const currentIndex = this.teams.findIndex(t => t.id === this.auction.current_turn_team_id);
+        const nextIndex = (currentIndex + 1) % this.teams.length;
+        const nextTeam = this.teams[nextIndex];
+        
+        await supabaseManager.client
+            .from('auctions')
+            .update({ current_turn_team_id: nextTeam.id })
+            .eq('id', this.auctionId);
+    }
+    
+    // ===================================
+    // UI UPDATES
+    // ===================================
+    
+    updateCallButton() {
+        const btn = document.getElementById('call-player-btn');
+        if (!btn) return;
+        
+        btn.disabled = !this.selectedPlayerId || !!this.currentPlayer;
+    }
+    
+    updateBidControls() {
+        const bidBtn = document.getElementById('bid-btn');
+        const assignBtn = document.getElementById('assign-btn');
+        
+        const hasCurrentPlayer = !!this.currentPlayer;
+        const canBid = hasCurrentPlayer && this.myTeam && !this.isMyTurn;
+        const canAssign = hasCurrentPlayer && (this.isMyTurn || this.auction.auction_type === 'random');
+        
+        if (bidBtn) bidBtn.disabled = !canBid;
+        if (assignBtn) assignBtn.disabled = !canAssign;
     }
     
     checkTurn() {
@@ -210,426 +835,56 @@ class AuctionLiveManager {
         } else if (this.auction.bid_mode === 'fixed_turns') {
             this.isMyTurn = this.auction.current_turn_team_id === this.myTeam.id;
         } else {
-            // Free bidding
-            this.isMyTurn = true;
+            // Free bidding - everyone can bid
+            this.isMyTurn = false;
         }
         
         this.updateBidControls();
     }
     
-    updateAuctionUI() {
-        // Update header
-        document.getElementById('live-auction-name').textContent = this.auction.name;
+    // ===================================
+    // SIDEBAR
+    // ===================================
+    
+    toggleSidebar() {
+        this.sidebarOpen = !this.sidebarOpen;
+        const sidebar = document.getElementById('players-sidebar');
+        const mainContent = document.querySelector('.live-main-content');
         
-        // Update current player if any
-        if (this.auction.current_player_id) {
-            this.loadCurrentPlayer(this.auction.current_player_id);
+        if (this.sidebarOpen) {
+            sidebar?.classList.add('open');
+            mainContent?.classList.add('sidebar-open');
         } else {
-            this.clearCurrentPlayer();
-        }
-        
-        // Update bid display
-        if (this.currentBid) {
-            document.getElementById('current-bid-amount').textContent = `${this.currentBid.amount} €`;
-            document.getElementById('current-bid-team').textContent = 
-                this.currentBid.team?.name || '---';
+            sidebar?.classList.remove('open');
+            mainContent?.classList.remove('sidebar-open');
         }
     }
     
-    async loadCurrentPlayer(playerId) {
-        const player = this.players.find(p => p.Id === playerId);
-        if (!player) return;
-        
-        this.currentPlayer = player;
-        
-        // Show player display
-        document.getElementById('player-display').classList.remove('hidden');
-        document.getElementById('no-player-display').classList.add('hidden');
-        
-        // Update player info
-        const roleEl = document.getElementById('player-role');
-        roleEl.textContent = player.R;
-        roleEl.setAttribute('data-role', player.R);
-        
-        document.getElementById('player-name').textContent = player.Nome;
-        document.getElementById('player-team').textContent = player.Squadra;
-        document.getElementById('player-qt').textContent = player.qt_a || '1';
-        document.getElementById('player-ia').textContent = player.ia_value || '-';
-        document.getElementById('player-slot').textContent = player.slot_value || '-';
-        
-        // Update bid input minimum
-        const minBid = (this.currentBid?.amount || 0) + 1;
-        const bidInput = document.getElementById('bid-input');
-        if (bidInput) {
-            bidInput.min = minBid;
-            bidInput.value = minBid;
-        }
+    closeSidebar() {
+        this.sidebarOpen = false;
+        document.getElementById('players-sidebar')?.classList.remove('open');
+        document.querySelector('.live-main-content')?.classList.remove('sidebar-open');
     }
     
-    clearCurrentPlayer() {
-        this.currentPlayer = null;
-        document.getElementById('player-display').classList.add('hidden');
-        document.getElementById('no-player-display').classList.remove('hidden');
-        document.getElementById('player-status-text').textContent = 'In attesa del prossimo giocatore...';
-    }
-    
-    updateTeamsDisplay() {
-        const container = document.getElementById('teams-grid');
-        if (!container) return;
-        
-        container.innerHTML = this.teams.map(team => {
-            const isActive = team.id === this.auction.current_turn_team_id;
-            const isBidding = team.id === this.currentBid?.team_id;
-            const rosterInfo = this.getTeamRosterInfo(team.id);
-            
-            return `
-                <div class="team-card ${isActive ? 'active' : ''} ${isBidding ? 'current-bidder' : ''}">
-                    <div class="team-name">${team.name}</div>
-                    <div class="team-budget">${team.budget_remaining} €</div>
-                    <div class="team-roster-count">
-                        <span class="roster-count-item">P: ${rosterInfo.P}</span>
-                        <span class="roster-count-item">D: ${rosterInfo.D}</span>
-                        <span class="roster-count-item">C: ${rosterInfo.C}</span>
-                        <span class="roster-count-item">A: ${rosterInfo.A}</span>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-    
-    getTeamRosterInfo(teamId) {
-        // This would need to be loaded from rosters table
-        // For now return empty counts
-        return { P: 0, D: 0, C: 0, A: 0 };
-    }
-    
-    filterPlayers(role) {
-        this.currentFilter = role;
-        
-        // Update filter buttons
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.role === role);
-        });
-        
-        // Filter players
-        if (role === 'all') {
-            this.filteredPlayers = this.players;
-        } else {
-            this.filteredPlayers = this.players.filter(p => p.R === role);
-        }
-        
-        // Apply search if any
-        if (this.searchQuery) {
-            this.searchPlayers(this.searchQuery, false);
-        } else {
-            this.renderPlayers();
-        }
-    }
-    
-    searchPlayers(query, render = true) {
-        this.searchQuery = query.toLowerCase();
-        
-        if (this.searchQuery) {
-            this.filteredPlayers = (this.currentFilter === 'all' ? this.players : this.filteredPlayers)
-                .filter(p => 
-                    p.Nome.toLowerCase().includes(this.searchQuery) ||
-                    p.Squadra.toLowerCase().includes(this.searchQuery)
-                );
-        } else if (this.currentFilter !== 'all') {
-            this.filteredPlayers = this.players.filter(p => p.R === this.currentFilter);
-        } else {
-            this.filteredPlayers = this.players;
-        }
-        
-        if (render) this.renderPlayers();
-    }
-    
-    toggleView(view) {
-        this.currentView = view;
-        
-        // Update buttons
-        document.querySelectorAll('.view-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.view === view);
-        });
-        
-        this.renderPlayers();
-    }
-    
-    renderPlayers() {
-        const container = document.getElementById('players-container');
-        if (!container) return;
-        
-        if (this.filteredPlayers.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <p>Nessun giocatore trovato</p>
-                </div>
-            `;
-            return;
-        }
-        
-        if (this.currentView === 'grid') {
-            this.renderPlayersGrid(container);
-        } else {
-            this.renderPlayersList(container);
-        }
-    }
-    
-    renderPlayersGrid(container) {
-        container.innerHTML = `
-            <div class="players-grid">
-                ${this.filteredPlayers.map(player => this.createPlayerCard(player)).join('')}
-            </div>
-        `;
-        
-        // Add click listeners
-        container.querySelectorAll('.player-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const playerId = parseInt(card.dataset.playerId);
-                this.selectPlayer(playerId);
-            });
-        });
-    }
-    
-    renderPlayersList(container) {
-        container.innerHTML = `
-            <div class="players-list">
-                ${this.filteredPlayers.map(player => this.createPlayerListItem(player)).join('')}
-            </div>
-        `;
-        
-        // Add click listeners
-        container.querySelectorAll('.player-list-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const playerId = parseInt(item.dataset.playerId);
-                this.selectPlayer(playerId);
-            });
-        });
-    }
-    
-    createPlayerCard(player) {
-        const isBought = this.boughtPlayers[player.Id];
-        const isSelected = this.currentPlayer?.Id === player.Id;
-        const roleColor = Utils.getRoleColor(player.R);
-        
-        return `
-            <div class="player-card ${isBought ? 'bought' : ''} ${isSelected ? 'selected' : ''}" 
-                 data-player-id="${player.Id}">
-                <div class="player-card-role" style="color: ${roleColor}">${player.R}</div>
-                <div class="player-card-name">${player.Nome}</div>
-                <div class="player-card-team">${player.Squadra}</div>
-                <div class="player-card-stats">
-                    <div class="player-card-stat">
-                        <span class="player-card-stat-label">IA</span>
-                        <span class="player-card-stat-value">${player.ia_value || '-'}</span>
-                    </div>
-                    <div class="player-card-stat">
-                        <span class="player-card-stat-label">Slot</span>
-                        <span class="player-card-stat-value">${player.slot_value || '-'}</span>
-                    </div>
-                </div>
-                ${isBought ? `<div class="player-owner">${isBought}</div>` : ''}
-            </div>
-        `;
-    }
-    
-    createPlayerListItem(player) {
-        const isBought = this.boughtPlayers[player.Id];
-        const roleColor = Utils.getRoleColor(player.R);
-        
-        return `
-            <div class="player-list-item ${isBought ? 'bought' : ''}" 
-                 data-player-id="${player.Id}">
-                <div class="player-list-role" style="color: ${roleColor}">${player.R}</div>
-                <div class="player-list-info">
-                    <div class="player-list-name">${player.Nome}</div>
-                    <div class="player-list-team">${player.Squadra}</div>
-                </div>
-                <div class="player-list-stats">
-                    <span class="stat">IA: ${player.ia_value || '-'}</span>
-                    <span class="stat">Slot: ${player.slot_value || '-'}</span>
-                </div>
-            </div>
-        `;
-    }
-    
-    async selectPlayer(playerId) {
-        if (!this.isMyTurn) {
-            Utils.toast('Non è il tuo turno', 'warning');
-            return;
-        }
-        
-        if (this.boughtPlayers[playerId]) {
-            Utils.toast('Giocatore già acquistato', 'error');
-            return;
-        }
-        
-        // Set as current player
-        await this.callPlayer(playerId);
-    }
-    
-    async callPlayer(playerId) {
-        try {
-            // Update auction with new current player
-            const { error } = await supabaseManager.client
-                .from('auctions')
-                .update({ current_player_id: playerId })
-                .eq('id', this.auctionId);
-            
-            if (error) throw error;
-            
-            // Add to called players
-            await supabaseManager.client
-                .from('called_players')
-                .insert({ 
-                    auction_id: this.auctionId,
-                    player_id: playerId
-                });
-            
-            // Load the player
-            await this.loadCurrentPlayer(playerId);
-            
-            // Start bidding at base price
-            const basePrice = this.auction.starting_price_type === 'qt_a' ? 
-                (this.currentPlayer.qt_a || 1) : 1;
-            
-            await this.placeBidAmount(basePrice);
-            
-        } catch (error) {
-            console.error('Error calling player:', error);
-            Utils.toast('Errore nella chiamata del giocatore', 'error');
-        }
-    }
-    
-    adjustBid(delta) {
-        const input = document.getElementById('bid-input');
-        if (!input) return;
-        
-        const currentValue = parseInt(input.value) || 1;
-        const minBid = (this.currentBid?.amount || 0) + 1;
-        const newValue = Math.max(minBid, currentValue + delta);
-        
-        input.value = newValue;
-    }
-    
-    async placeBid() {
-        if (!this.isMyTurn) {
-            Utils.toast('Non è il tuo turno', 'warning');
-            return;
-        }
-        
-        if (!this.currentPlayer) {
-            Utils.toast('Seleziona un giocatore', 'warning');
-            return;
-        }
-        
-        const amount = parseInt(document.getElementById('bid-input').value);
-        
-        // Show confirmation
-        this.showBidConfirmation(amount);
-    }
-    
-    showBidConfirmation(amount) {
-        const modal = document.getElementById('bid-confirmation-modal');
-        if (!modal) return;
-        
-        document.getElementById('confirm-amount').textContent = `${amount} €`;
-        document.getElementById('confirm-player').textContent = this.currentPlayer.Nome;
-        document.getElementById('remaining-budget').textContent = 
-            `${this.myTeam.budget_remaining - amount} €`;
-        
-        modal.classList.remove('hidden');
-        
-        // Set up confirm button
-        const confirmBtn = document.getElementById('confirm-bid-btn');
-        confirmBtn.onclick = async () => {
-            modal.classList.add('hidden');
-            await this.placeBidAmount(amount);
-        };
-    }
-    
-    async placeBidAmount(amount) {
-        try {
-            const result = await supabaseManager.placeBid(
-                this.auctionId,
-                this.currentPlayer.Id,
-                this.myTeam.id,
-                amount
-            );
-            
-            if (result.success) {
-                // Reset timer if enabled
-                if (this.auction.timer_enabled) {
-                    this.startTimer(this.auction.timer_seconds);
-                }
-                
-                // Reload auction to get updated state
-                await this.loadAuction();
-            } else {
-                Utils.toast(result.error || 'Errore nell\'offerta', 'error');
-            }
-            
-        } catch (error) {
-            console.error('Error placing bid:', error);
-            Utils.toast('Errore nell\'offerta', 'error');
-        }
-    }
-    
-    async passTurn() {
-        // Logic for passing depends on auction rules
-        Utils.toast('Hai passato', 'info');
-        
-        // If timer is running and everyone passed, assign player
-        // This needs more complex logic based on auction rules
-    }
-    
-    async pauseAuction() {
-        if (confirm('Vuoi mettere in pausa l\'asta?')) {
-            try {
-                await supabaseManager.updateAuctionStatus(this.auctionId, 'paused');
-                Utils.toast('Asta in pausa', 'info');
-                this.stopTimer();
-            } catch (error) {
-                Utils.toast('Errore nella pausa', 'error');
-            }
-        }
-    }
-    
-    updateBidControls() {
-        const bidBtn = document.getElementById('bid-btn');
-        const passBtn = document.getElementById('pass-btn');
-        const bidInput = document.getElementById('bid-input');
-        const adjustBtns = [document.getElementById('bid-minus'), document.getElementById('bid-plus')];
-        
-        const isEnabled = this.isMyTurn && this.currentPlayer;
-        
-        if (bidBtn) bidBtn.disabled = !isEnabled;
-        if (passBtn) passBtn.disabled = !isEnabled;
-        if (bidInput) bidInput.disabled = !isEnabled;
-        adjustBtns.forEach(btn => { if (btn) btn.disabled = !isEnabled; });
-    }
+    // ===================================
+    // TIMER
+    // ===================================
     
     startTimer(seconds) {
         this.stopTimer();
         this.timeRemaining = seconds;
-        
-        const timerEl = document.querySelector('.timer-value');
-        if (!timerEl) return;
+        this.updateTimerDisplay();
         
         this.timerInterval = setInterval(() => {
             this.timeRemaining--;
-            
-            timerEl.textContent = this.timeRemaining;
-            
-            if (this.timeRemaining <= 5) {
-                timerEl.classList.add('danger');
-            } else if (this.timeRemaining <= 10) {
-                timerEl.classList.add('warning');
-            }
+            this.updateTimerDisplay();
             
             if (this.timeRemaining <= 0) {
                 this.stopTimer();
-                this.onTimerExpired();
+                // Auto-assign if timer expires
+                if (this.currentPlayer && this.currentBid) {
+                    this.confirmAssignment();
+                }
             }
         }, 1000);
     }
@@ -639,76 +894,56 @@ class AuctionLiveManager {
             clearInterval(this.timerInterval);
             this.timerInterval = null;
         }
+    }
+    
+    updateTimerDisplay() {
+        const timerValue = document.querySelector('.timer-value');
+        if (!timerValue) return;
         
-        const timerEl = document.querySelector('.timer-value');
-        if (timerEl) {
-            timerEl.textContent = '--';
-            timerEl.classList.remove('warning', 'danger');
+        timerValue.textContent = this.timeRemaining;
+        
+        timerValue.classList.remove('warning', 'danger');
+        if (this.timeRemaining <= 5 && this.timeRemaining > 3) {
+            timerValue.classList.add('warning');
+        } else if (this.timeRemaining <= 3) {
+            timerValue.classList.add('danger');
         }
     }
     
-    async onTimerExpired() {
-        // Assign player to current bidder
-        if (this.currentBid && this.currentPlayer) {
-            await this.assignPlayer();
-        }
-    }
-    
-    async assignPlayer() {
-        try {
-            const result = await supabaseManager.assignPlayer(
-                this.auctionId,
-                this.currentPlayer.Id,
-                this.currentBid.team_id,
-                this.currentBid.amount
-            );
-            
-            if (result.success) {
-                this.showWinnerModal();
-                
-                // Clear current player after delay
-                setTimeout(() => {
-                    this.clearCurrentPlayer();
-                    this.loadAuction();
-                    this.loadCalledPlayers();
-                }, 3000);
-            }
-            
-        } catch (error) {
-            console.error('Error assigning player:', error);
-            Utils.toast('Errore nell\'assegnazione', 'error');
-        }
-    }
-    
-    showWinnerModal() {
-        const modal = document.getElementById('winner-modal');
-        if (!modal) return;
-        
-        const winner = this.teams.find(t => t.id === this.currentBid.team_id);
-        
-        document.getElementById('winner-role').textContent = this.currentPlayer.R;
-        document.getElementById('winner-role').style.color = Utils.getRoleColor(this.currentPlayer.R);
-        document.getElementById('winner-player-name').textContent = this.currentPlayer.Nome;
-        document.getElementById('winner-team-name').textContent = winner?.name || '---';
-        document.getElementById('winner-price').textContent = `${this.currentBid.amount} €`;
-        
-        modal.classList.remove('hidden');
-        
-        setTimeout(() => {
-            modal.classList.add('hidden');
-        }, 5000);
-    }
+    // ===================================
+    // REALTIME
+    // ===================================
     
     setupRealtimeSubscription() {
         this.realtimeChannel = supabaseManager.subscribeToAuction(this.auctionId, {
-            onAuctionUpdate: () => this.loadAuction(),
-            onBidUpdate: () => this.loadAuction(),
-            onRosterUpdate: () => {
-                this.loadCalledPlayers();
-                this.renderPlayers();
+            onAuctionUpdate: async () => {
+                await this.loadAuction();
+                this.renderAll();
+            },
+            onBidUpdate: async () => {
+                await this.loadAuction();
+                this.updateBidDisplay();
+                this.renderTeamsGrid();
+            },
+            onRosterUpdate: async () => {
+                await this.loadRosters();
+                this.renderAll();
             }
         });
     }
+    
+    // ===================================
+    // PAUSE
+    // ===================================
+    
+    pauseAuction() {
+        document.getElementById('pause-modal')?.classList.remove('hidden');
+        this.stopTimer();
+    }
+    
+    // ===================================
+    // CLEANUP
+    // ===================================
     
     destroy() {
         this.stopTimer();
