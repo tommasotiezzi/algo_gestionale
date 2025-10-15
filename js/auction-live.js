@@ -204,28 +204,42 @@ class AuctionLiveManager {
     
     async loadPlayers() {
         try {
-            const result = await supabaseManager.getPlayers({
-                auctionId: this.auctionId
-            });
-            
-            if (result.success) {
-                this.players = result.data || [];
-                
-                // Add calculated fields for both mod and nomod
-                const suffix = `_${this.auction.num_partecipanti}`;
-                this.players = this.players.map(player => ({
-                    ...player,
-                    ia_mod: player[`IA${suffix}_mod`] || 0,
-                    ia_nomod: player[`IA${suffix}_nomod`] || 0,
-                    slot_mod: player[`Slot${suffix}_mod`] || null,
-                    slot_nomod: player[`Slot${suffix}_nomod`] || null,
-                    budget_max_mod: player[`Budget MAX${suffix}_mod`] || 0,
-                    budget_max_nomod: player[`Budget MAX${suffix}_nomod`] || 0
-                }));
-                
-                // Sort players
-                this.sortPlayers();
+            // Show loading in sidebar
+            const sidebarContainer = document.getElementById('sidebar-players-container');
+            if (sidebarContainer) {
+                sidebarContainer.innerHTML = `
+                    <div class="players-loading">
+                        <div class="loading"></div>
+                        <p>Caricamento giocatori...</p>
+                    </div>
+                `;
             }
+            
+            // Load ALL players (don't filter by auctionId here)
+            const { data, error } = await supabaseManager.client
+                .from('players')
+                .select('*');
+            
+            if (error) throw error;
+            
+            this.players = data || [];
+            
+            console.log(`Loaded ${this.players.length} players`);
+            
+            // Add calculated fields for both mod and nomod
+            const suffix = `_${this.auction.num_partecipanti}`;
+            this.players = this.players.map(player => ({
+                ...player,
+                ia_mod: player[`IA${suffix}_mod`] || 0,
+                ia_nomod: player[`IA${suffix}_nomod`] || 0,
+                slot_mod: player[`Slot${suffix}_mod`] || null,
+                slot_nomod: player[`Slot${suffix}_nomod`] || null,
+                budget_max_mod: player[`Budget MAX${suffix}_mod`] || 0,
+                budget_max_nomod: player[`Budget MAX${suffix}_nomod`] || 0
+            }));
+            
+            // Sort players
+            this.sortPlayers();
             
         } catch (error) {
             console.error('Error loading players:', error);
