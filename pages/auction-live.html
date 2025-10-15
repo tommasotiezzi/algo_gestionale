@@ -1,6 +1,7 @@
-<!-- AUCTION LIVE SECTION CONTENT -->
+<!-- AUCTION LIVE SECTION CONTENT - NEW LAYOUT -->
 <div class="auction-live-wrapper">
-    <!-- Live Header -->
+    
+    <!-- Top Header -->
     <div class="live-header">
         <div class="live-header-left">
             <button class="btn-icon" onclick="window.router.navigate('dashboard')">
@@ -21,190 +22,288 @@
         </div>
         
         <div class="live-header-right">
-            <button class="btn-icon" id="pause-btn" title="Pausa">
-                ⏸️
-            </button>
-            <button class="btn-icon" id="settings-btn" title="Impostazioni">
-                ⚙️
+            <button class="btn-icon" id="pause-btn" title="Pausa">⏸️</button>
+            <button class="btn-icon" id="settings-btn" title="Impostazioni">⚙️</button>
+            <button class="btn-icon" id="toggle-players-sidebar" title="Mostra/Nascondi Giocatori">
+                📋
             </button>
         </div>
     </div>
 
-    <!-- Main Content - Split View -->
-    <div class="live-container">
-        <!-- LEFT SIDE - Auction Area -->
-        <div class="auction-area">
-            <!-- Current Player Card -->
-            <div class="current-player-card">
-                <div class="player-header">
-                    <div class="player-status">
-                        <span id="player-status-text">In attesa del prossimo giocatore...</span>
+    <!-- Main Content Container -->
+    <div class="live-main-content">
+        
+        <!-- BATTITORE SECTION (Top) -->
+        <div class="battitore-section">
+            <div class="battitore-controls">
+                
+                <!-- Player Selection Dropdown -->
+                <div class="battitore-selector">
+                    <label for="player-selector">Seleziona Giocatore</label>
+                    <select id="player-selector" class="player-dropdown">
+                        <option value="">-- Scegli un giocatore --</option>
+                    </select>
+                </div>
+                
+                <!-- Role Filters -->
+                <div class="battitore-filters">
+                    <label>Filtra per Ruolo</label>
+                    <div class="role-filter-group">
+                        <button class="role-filter-btn active" data-role="all">Tutti</button>
+                        <button class="role-filter-btn" data-role="P" style="color: var(--role-p)">P</button>
+                        <button class="role-filter-btn" data-role="D" style="color: var(--role-d)">D</button>
+                        <button class="role-filter-btn" data-role="C" style="color: var(--role-c)">C</button>
+                        <button class="role-filter-btn" data-role="A" style="color: var(--role-a)">A</button>
                     </div>
                 </div>
                 
-                <div id="player-display" class="player-display hidden">
-                    <div class="player-main-info">
-                        <div class="player-role-badge" id="player-role">
-                            -
-                        </div>
-                        <div class="player-details">
-                            <h1 class="player-name" id="player-name">---</h1>
-                            <div class="player-team" id="player-team">---</div>
-                            <div class="player-stats">
-                                <span class="stat">
-                                    <span class="stat-label">QT:</span>
-                                    <span class="stat-value" id="player-qt">-</span>
-                                </span>
-                                <span class="stat">
-                                    <span class="stat-label">IA:</span>
-                                    <span class="stat-value" id="player-ia">-</span>
-                                </span>
-                                <span class="stat">
-                                    <span class="stat-label">Slot:</span>
-                                    <span class="stat-value" id="player-slot">-</span>
-                                </span>
-                            </div>
+                <!-- Available/Bought Filter -->
+                <div class="battitore-availability">
+                    <label>
+                        <input type="checkbox" id="show-only-available" checked>
+                        <span>Solo Disponibili</span>
+                    </label>
+                </div>
+                
+                <!-- Mod/NoMod Toggle -->
+                <div class="battitore-modifier">
+                    <label>Visualizzazione Slot</label>
+                    <div class="toggle-switch">
+                        <button class="toggle-btn active" data-mode="nomod">NO MOD</button>
+                        <button class="toggle-btn" data-mode="mod">MOD</button>
+                    </div>
+                </div>
+                
+                <!-- Call Button -->
+                <button class="btn btn-primary btn-call-player" id="call-player-btn" disabled>
+                    📢 Chiama Giocatore
+                </button>
+            </div>
+        </div>
+
+        <!-- GIOCATORE SECTION (Center) -->
+        <div class="giocatore-section">
+            
+            <!-- No Player State -->
+            <div class="no-player-state" id="no-player-state">
+                <div class="no-player-icon">⚽</div>
+                <h3>In attesa del prossimo giocatore...</h3>
+                <p>Seleziona un giocatore dalla lista per iniziare</p>
+            </div>
+            
+            <!-- Called Player Display -->
+            <div class="called-player-display hidden" id="called-player-display">
+                
+                <!-- Player Card -->
+                <div class="player-card-large">
+                    <div class="player-card-header">
+                        <div class="player-role-badge-large" id="player-role-large">-</div>
+                        <div class="player-info-large">
+                            <h1 class="player-name-large" id="player-name-large">---</h1>
+                            <div class="player-team-large" id="player-team-large">---</div>
                         </div>
                     </div>
                     
-                    <!-- Bid Info -->
-                    <div class="bid-section">
-                        <div class="current-bid">
-                            <div class="bid-label">Offerta Attuale</div>
-                            <div class="bid-amount" id="current-bid-amount">0 €</div>
-                            <div class="bid-team" id="current-bid-team">---</div>
+                    <div class="player-stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-label">QT</span>
+                            <span class="stat-value" id="player-qt">-</span>
                         </div>
-                        
-                        <div class="bid-controls">
-                            <div class="bid-input-group">
-                                <button class="bid-adjust" id="bid-minus">-</button>
-                                <input type="number" id="bid-input" class="bid-input" value="1" min="1">
-                                <button class="bid-adjust" id="bid-plus">+</button>
-                            </div>
-                            <button class="btn btn-primary btn-bid" id="bid-btn">
-                                RILANCIA
-                            </button>
-                            <button class="btn btn-secondary" id="pass-btn">
-                                PASSO
-                            </button>
+                        <div class="stat-box">
+                            <span class="stat-label">IA</span>
+                            <span class="stat-value" id="player-ia">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Slot</span>
+                            <span class="stat-value" id="player-slot">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Budget MAX</span>
+                            <span class="stat-value" id="player-budget-max">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Titolarità</span>
+                            <span class="stat-value" id="player-titolarita">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">MV</span>
+                            <span class="stat-value" id="player-mv">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">FM</span>
+                            <span class="stat-value" id="player-fm">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">PMA</span>
+                            <span class="stat-value" id="player-pma">-</span>
                         </div>
                     </div>
                 </div>
                 
-                <!-- No Player State -->
-                <div id="no-player-display" class="no-player-display">
-                    <div class="no-player-icon">⚽</div>
-                    <p>Seleziona un giocatore dalla lista</p>
-                </div>
-            </div>
-
-            <!-- Teams Overview -->
-            <div class="teams-overview">
-                <div class="teams-header">
-                    <h3>Teams & Budget</h3>
-                    <div class="teams-legend">
-                        <span class="legend-item active">🟢 Attivo</span>
-                        <span class="legend-item">⚪ In attesa</span>
+                <!-- Bidding Section -->
+                <div class="bidding-section">
+                    <div class="current-bid-info">
+                        <div class="bid-label">Offerta Attuale</div>
+                        <div class="bid-amount" id="current-bid-amount">1 €</div>
+                        <div class="bid-team" id="current-bid-team">---</div>
                     </div>
-                </div>
-                <div class="teams-grid" id="teams-grid">
-                    <!-- Teams will be loaded here -->
+                    
+                    <div class="bid-controls">
+                        <div class="bid-input-group">
+                            <button class="bid-adjust" id="bid-minus">−</button>
+                            <input type="number" class="bid-input" id="bid-input" min="1" value="1">
+                            <button class="bid-adjust" id="bid-plus">+</button>
+                        </div>
+                        
+                        <button class="btn btn-success btn-bid" id="bid-btn" disabled>
+                            💰 Rilancia
+                        </button>
+                        
+                        <button class="btn btn-secondary" id="assign-btn" disabled>
+                            ✓ Assegna
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT SIDE - Players List -->
-        <div class="players-area">
-            <!-- Filters -->
-            <div class="players-filters">
-                <div class="filter-group">
-                    <button class="filter-btn active" data-role="all">Tutti</button>
-                    <button class="filter-btn" data-role="P">
-                        <span style="color: var(--role-p)">P</span>
-                    </button>
-                    <button class="filter-btn" data-role="D">
-                        <span style="color: var(--role-d)">D</span>
-                    </button>
-                    <button class="filter-btn" data-role="C">
-                        <span style="color: var(--role-c)">C</span>
-                    </button>
-                    <button class="filter-btn" data-role="A">
-                        <span style="color: var(--role-a)">A</span>
-                    </button>
-                </div>
-                
-                <div class="search-group">
-                    <input type="text" id="player-search" class="search-input" placeholder="🔍 Cerca giocatore...">
-                </div>
-                
-                <div class="view-toggle">
-                    <button class="view-btn active" data-view="grid">⊞</button>
-                    <button class="view-btn" data-view="list">☰</button>
+        <!-- ROSE SECTION (Bottom - Horizontal Scroll) -->
+        <div class="rose-section">
+            <div class="rose-header">
+                <h3>Rose & Budget</h3>
+            </div>
+            
+            <div class="rose-scroll-container">
+                <div class="rose-grid" id="rose-grid">
+                    <!-- Teams will be loaded here dynamically -->
+                    <!-- Example structure:
+                    <div class="team-column">
+                        <div class="team-column-header">
+                            <div class="team-name">Team #3</div>
+                            <div class="team-budget">500 €</div>
+                            <div class="turn-indicator">👤</div>
+                        </div>
+                        <div class="team-roster">
+                            <div class="roster-item">P: 3 / 3</div>
+                            <div class="roster-item">D: 8 / 8</div>
+                            <div class="roster-item">C: 8 / 8</div>
+                            <div class="roster-item">A: 6 / 6</div>
+                        </div>
+                        <div class="team-progress">
+                            <div class="progress-bar"><div class="progress-fill" style="width: 90%"></div></div>
+                        </div>
+                    </div>
+                    -->
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Players List Container -->
-            <div class="players-container" id="players-container">
-                <div class="players-loading">
-                    <div class="loading"></div>
-                    <p>Caricamento giocatori...</p>
+    <!-- PLAYERS SIDEBAR (Right - Collapsible) -->
+    <div class="players-sidebar collapsed" id="players-sidebar">
+        <div class="sidebar-header">
+            <h3>Lista Giocatori</h3>
+            <button class="btn-icon" id="close-sidebar">✕</button>
+        </div>
+        
+        <div class="sidebar-filters">
+            <!-- Search -->
+            <div class="sidebar-search">
+                <input type="text" id="sidebar-player-search" placeholder="🔍 Cerca giocatore...">
+            </div>
+            
+            <!-- Role Filters -->
+            <div class="sidebar-role-filters">
+                <button class="sidebar-filter-btn active" data-role="all">Tutti</button>
+                <button class="sidebar-filter-btn" data-role="P">P</button>
+                <button class="sidebar-filter-btn" data-role="D">D</button>
+                <button class="sidebar-filter-btn" data-role="C">C</button>
+                <button class="sidebar-filter-btn" data-role="A">A</button>
+            </div>
+            
+            <!-- View Toggle -->
+            <div class="sidebar-view-toggle">
+                <button class="view-btn active" data-view="grid">⊞</button>
+                <button class="view-btn" data-view="list">☰</button>
+            </div>
+        </div>
+        
+        <div class="sidebar-content" id="sidebar-players-container">
+            <div class="players-loading">
+                <div class="loading"></div>
+                <p>Caricamento giocatori...</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modals -->
+
+<!-- Winner Modal -->
+<div class="modal hidden" id="winner-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content celebration-modal">
+        <div class="celebration-header">
+            <h2>🎉 Giocatore Assegnato!</h2>
+        </div>
+        <div class="celebration-body">
+            <div class="winner-player">
+                <div class="winner-role" id="winner-role" style="color: var(--role-p)">P</div>
+                <div class="winner-info">
+                    <p>Giocatore</p>
+                    <div class="winner-name" id="winner-player-name">---</div>
                 </div>
             </div>
+            <div class="winner-team" id="winner-team-name">Team ---</div>
+            <div class="winner-price" id="winner-price">0 €</div>
         </div>
     </div>
 </div>
 
-<!-- Bid Confirmation Modal -->
-<div id="bid-confirmation-modal" class="modal hidden">
+<!-- Confirm Assignment Modal -->
+<div class="modal hidden" id="confirm-assignment-modal">
     <div class="modal-backdrop"></div>
-    <div class="modal-content modal-small">
+    <div class="modal-content">
         <div class="modal-header">
-            <h3>Conferma Offerta</h3>
+            <h3>Conferma Assegnazione</h3>
+            <button class="modal-close" onclick="this.closest('.modal').classList.add('hidden')">✕</button>
         </div>
-        <div class="modal-body text-center">
-            <p>Stai per offrire</p>
+        <div class="modal-body">
+            <p>Confermi l'assegnazione di:</p>
+            <div class="confirm-player" id="confirm-player-name">---</div>
+            <p>al team:</p>
+            <div class="confirm-team" id="confirm-team-name">---</div>
+            <p>per:</p>
             <div class="confirm-amount" id="confirm-amount">0 €</div>
-            <p>per</p>
-            <div class="confirm-player" id="confirm-player">---</div>
-            <p class="budget-warning">
-                Budget rimanente dopo: <span id="remaining-budget">0 €</span>
-            </p>
+            <p class="budget-warning" id="confirm-budget-warning"></p>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="this.closest('.modal').classList.add('hidden')">
                 Annulla
             </button>
-            <button class="btn btn-success" id="confirm-bid-btn">
-                Conferma
+            <button class="btn btn-success" id="confirm-assignment-btn">
+                Conferma Assegnazione
             </button>
         </div>
     </div>
 </div>
 
-<!-- Winner Modal -->
-<div id="winner-modal" class="modal hidden">
+<!-- Pause Modal -->
+<div class="modal hidden" id="pause-modal">
     <div class="modal-backdrop"></div>
-    <div class="modal-content modal-celebration">
-        <div class="celebration-header">
-            <div class="confetti">🎉</div>
-            <h2>Giocatore Assegnato!</h2>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>⏸️ Asta in Pausa</h3>
+            <button class="modal-close" onclick="this.closest('.modal').classList.add('hidden')">✕</button>
         </div>
-        <div class="celebration-body">
-            <div class="winner-player">
-                <div class="winner-role" id="winner-role">-</div>
-                <div class="winner-name" id="winner-player-name">---</div>
-            </div>
-            <div class="winner-info">
-                <p>va a</p>
-                <div class="winner-team" id="winner-team-name">---</div>
-                <div class="winner-price">
-                    per <span id="winner-price">0 €</span>
-                </div>
-            </div>
+        <div class="modal-body">
+            <p>L'asta è stata messa in pausa.</p>
+            <p>Premi "Riprendi" per continuare.</p>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-primary" onclick="this.closest('.modal').classList.add('hidden')">
-                Continua
+            <button class="btn btn-primary" id="resume-btn">
+                ▶️ Riprendi
             </button>
         </div>
     </div>
