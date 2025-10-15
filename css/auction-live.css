@@ -118,27 +118,40 @@
     margin-right: 400px;
 }
 
+/* Top Row: Battitore + Giocatore Side by Side */
+.top-row {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+    border-bottom: 2px solid var(--border-color);
+}
+
 /* ===================================== 
    BATTITORE SECTION 
    ===================================== */
 
 .battitore-section {
     background: var(--bg-card);
-    border-bottom: 2px solid var(--border-color);
+    border-right: 2px solid var(--border-color);
     padding: var(--spacing-lg);
-    flex-shrink: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
 }
 
 .battitore-controls {
     display: flex;
+    flex-direction: column;
     gap: var(--spacing-lg);
-    align-items: flex-end;
-    flex-wrap: wrap;
 }
 
 .battitore-selector {
-    flex: 1;
-    min-width: 250px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
 }
 
 .battitore-selector label,
@@ -262,9 +275,10 @@
 
 .btn-call-player {
     padding: var(--spacing-md) var(--spacing-xl);
-    font-size: var(--text-lg);
+    font-size: var(--text-base);
     font-weight: 700;
     white-space: nowrap;
+    width: 100%;
 }
 
 .btn-call-player:disabled {
@@ -281,7 +295,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--spacing-xl);
+    padding: var(--spacing-lg);
     overflow-y: auto;
     background: var(--primary-gradient);
 }
@@ -527,11 +541,10 @@
 }
 
 .team-column {
-    min-width: 140px;
+    min-width: 180px;
     background: var(--bg-card);
     border: 2px solid var(--border-color);
     border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
     transition: all var(--transition-base);
 }
 
